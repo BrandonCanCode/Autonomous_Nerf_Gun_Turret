@@ -1,2 +1,3 @@
 **/logs
-run
+__pycache__
+.vscode
