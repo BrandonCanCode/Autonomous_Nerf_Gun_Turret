@@ -7,9 +7,11 @@
 #include "spdlog/spdlog.h"
 #include "../cv_lib/computer_vision.h"
 #include <unistd.h>
+#include <stdio.h>
 
-#define PREV_STATE 1
-#define NEXT_STATE 2
+
+#define PREV_STATE -1
+#define NEXT_STATE 1
 
 
 class control_lib {
@@ -27,7 +29,8 @@ public:
     int RunObjDetect();
     int RunTargetWarn();
     int RunTargetFire();
-
+    int move_stepper(int dir);
+    int move_servo(int dir);
 };
 
 #endif

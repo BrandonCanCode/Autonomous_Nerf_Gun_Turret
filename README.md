@@ -2,4 +2,7 @@
 Utilizes an intel depth camera and a raspberry pi 5 to control an autonomous nerf gun turret.
 
 # Dependencies
-* SPD Logger: sudo apt install libspdlog-dev
+SPD Logger: `sudo apt install libspdlog-dev`
+OpenCV: ``
+RealSense SDK 2.0: 
+   

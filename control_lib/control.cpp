@@ -78,3 +78,20 @@ int control_lib::RunTargetFire()
 
     //else shoot after waiting
 }
+
+/* Move toy verticalically
+*/
+int control_lib::move_servo(int dir)
+{
+    LOGGER->debug("Moving servo towards %d", dir);
+    return 0;
+}
+
+/* Move toy horizontally
+*/
+int control_lib::move_stepper(int dir)
+{
+    LOGGER->debug("Moving stepper towards %d", dir);
+    return 0;
+}
+
