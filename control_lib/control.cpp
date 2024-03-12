@@ -69,6 +69,9 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
 
 void DestructCL()
 {
+    //Stop beep
+    SERVO_DIR = 0;
+
     STOP_THREADS = true;
 
     printf("Exiting control library...\n");
