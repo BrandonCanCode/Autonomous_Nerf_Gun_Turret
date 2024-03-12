@@ -6,11 +6,16 @@
 //Private globals
 std::shared_ptr<spdlog::logger> LOGGER;
 std::thread js_thread;
+std::thread servo_thread;
 int JOYSTICK_FD = -1;
-bool RUN_MANUAL = false;
+bool RUN_MANUAL = true;
+
+//Thread variables
+int SERVO_DIR = 0;
 
 //Important Private Functions
 void JoyStickControl();
+void MoveServoThread();
 
 
 void SigHandle(int sig)
@@ -42,7 +47,24 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
             js_thread = std::thread(JoyStickControl);
         }
 
-    };
+        //Initialize wiringPi
+        if (wiringPiSetup() == -1)
+        {
+            printf ("Setup wiringPi Failed!\n");
+            DestructCL();
+            exit(1);
+        }
+        printf ("Reminder: this program must be run with sudo.\n");
+
+        //Configure Servo PIN
+        pinMode (SERVO_WP_PIN, PWM_OUTPUT);
+        pwmSetMode(PWM_MODE_MS);
+        pwmSetClock (1651);  //10ms period
+        pwmSetRange(1000);
+
+        //Start servo thread
+        servo_thread = std::thread(MoveServoThread);
+}
 
 void DestructCL()
 {
@@ -129,19 +151,61 @@ int RunTargetFire()
 }
 
 /* Move toy verticalically
+ * Negative value = up
+ * Positive value = down
 */
-int MoveServo(int value)
+void MoveServo(int value)
 {
-    LOGGER->debug("Moving servo");
-    return 0;
+    //Translate joystick value to [up 1, stop 0, down -1]
+
+    printf("value %d\n", value);
+    if (-DEAD_ZONE <= value && value <= DEAD_ZONE) //stop
+    {
+        SERVO_DIR = 0;
+        LOGGER->debug("Stopping servo");
+    }
+    else if (value < DEAD_ZONE) //Move up
+    {
+        SERVO_DIR = 1;
+        LOGGER->debug("Moving servo up");
+    }
+    else if (value > DEAD_ZONE) //Move down
+    {
+        SERVO_DIR = -1;
+        LOGGER->debug("Moving servo down");
+    }
+}
+
+void MoveServoThread()
+{
+    int position = 230;
+
+    while(1)
+    {
+        if (SERVO_DIR == 0) //stop
+        {
+            position = position;
+        }
+        else if (SERVO_DIR > 0) //Move up
+        {
+            if (position < MAX_SERVO)
+                position++;
+        }
+        else if (SERVO_DIR < 0) //Move down
+        {
+            if (position > MIN_SERVO)
+                position--;
+        }
+        pwmWrite(SERVO_WP_PIN, position);
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
+    }
 }
 
 /* Move toy horizontally
 */
-int MoveStepper(int value)
+void MoveStepper(int value)
 {
     LOGGER->debug("Moving stepper towards");
-    return 0;
 }
 
 void Beep(bool on)
@@ -247,8 +311,8 @@ void JoyStickControl()
                     axis = get_axis_state(&event, axes);
                     printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
 
-                    if (event.number == AXIS_HORZONTAL) MoveStepper(axes[axis].x);
-                    if (event.number == AXIS_VERTICAL)  MoveServo(axes[axis].y);
+                    if (event.number == AXIS_HORZONTAL) MoveStepper(axes[axis].y);
+                    if (event.number == AXIS_VERTICAL)  MoveServo(axes[axis].x);
                     if (event.number == AXIS_SPOOL)     Spool(axes[axis].x);
                     if (event.number == AXIS_FIRE)      Fire(axes[axis].y);
                 }

@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <wiringPi.h>
+#include <chrono>
 
 
 #define PREV_STATE -1
@@ -26,10 +27,15 @@
 #define AXIS_SPOOL 2
 #define AXIS_FIRE 5
 
+//Pins
+#define SERVO_WP_PIN 26 //GPIO 12 PWM0
+
 //Maximums and Minimums
 #define MAX_JSTICK 32767
 #define MAX_SERVO 250
-#define MIN_SERVO 230
+#define MIN_SERVO 220
+
+#define DEAD_ZONE 10
 
 //Global
 extern bool RUN_MANUAL;
