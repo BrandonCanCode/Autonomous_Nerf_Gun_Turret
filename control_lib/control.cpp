@@ -7,14 +7,15 @@
 std::shared_ptr<spdlog::logger> LOGGER;
 std::thread js_thread;
 std::thread servo_thread;
-int JOYSTICK_FD = -1;
 bool RUN_MANUAL = true;
+bool STOP_THREADS = false;
 
 //Thread variables
+int JOYSTICK_FD = -1;
 int SERVO_DIR = 0;
 
-//Important Private Functions
-void JoyStickControl();
+//Thread Functions
+void JoyStickControlThread();
 void MoveServoThread();
 
 
@@ -44,7 +45,7 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
         else
         {
             //Startup joystick controller thread
-            js_thread = std::thread(JoyStickControl);
+            js_thread = std::thread(JoyStickControlThread);
         }
 
         //Initialize wiringPi
@@ -68,6 +69,8 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
 
 void DestructCL()
 {
+    STOP_THREADS = true;
+
     printf("Exiting control library...\n");
     if (JOYSTICK_FD != -1)
         close(JOYSTICK_FD);
@@ -180,7 +183,7 @@ void MoveServoThread()
 {
     int position = 230;
 
-    while(1)
+    while(!STOP_THREADS)
     {
         if (SERVO_DIR == 0) //stop
         {
@@ -274,7 +277,7 @@ size_t get_axis_state(struct js_event *event, struct axis_state axes[3])
 /* Manual control via a bluetooth controller.
  * '-' sign toggles between manual or AI controlling mode.
 */
-void JoyStickControl()
+void JoyStickControlThread()
 {
     if (JOYSTICK_FD != -1)
     {
@@ -283,7 +286,7 @@ void JoyStickControl()
         size_t axis;
 
         // This loop will exit if the controller is unplugged.
-        while (read_event(JOYSTICK_FD, &event) == 0)
+        while (!STOP_THREADS && read_event(JOYSTICK_FD, &event) == 0)
         {
             if (event.type == JS_EVENT_BUTTON && event.number == BTN_TOGGLE_MODE && event.value == true)
             {
