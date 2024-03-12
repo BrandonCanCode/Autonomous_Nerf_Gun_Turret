@@ -1,6 +1,6 @@
 # makefile for the control library
 CC = g++
-CFLAGS = -Wall -DSPDLOG_COMPILED_LIB -lspdlog
+CFLAGS = -Wall -DSPDLOG_COMPILED_LIB -lspdlog -pthread -l wiringPi
 
 SRCS = main.cpp control_lib/control.cpp
 OUT = run
