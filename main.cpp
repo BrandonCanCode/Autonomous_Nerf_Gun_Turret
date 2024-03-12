@@ -9,15 +9,13 @@
 #include <unistd.h>
 #include <stdbool.h>
 
-
 //States
-enum state_e {
-    IDLE,
-    OBJ_DETECT,
-    TARGET_WARNING,
-    TARGET_FIRE
-};
+#define IDLE 0
+#define OBJ_DETECT 1
+#define TARGET_WARNING 2
+#define TARGET_FIRE 3
 
+//Globals
 std::shared_ptr<spdlog::logger> InitializeLogger();
 
 
@@ -26,56 +24,31 @@ int main(int argc, char **argv)
     //Initialization
     std::shared_ptr<spdlog::logger> logger = InitializeLogger();
     logger->debug("System initializing...");
-    control_lib CL(logger);
+    InitCL(logger);
 
-    state_e state = IDLE;
-
+    int state = IDLE;
     bool loop = true;
-    int result = 0;
     while(loop)
     {
-        switch (state)
+        if (!RUN_MANUAL)
         {
-        case IDLE:
-            result = CL.RunIdle();
-            if (result == NEXT_STATE)
-                state = OBJ_DETECT;
-            break;
-        
-        case OBJ_DETECT:
-            result = CL.RunObjDetect();
-            if (result == PREV_STATE)
-                state = IDLE;
-            else if (result == NEXT_STATE)
-                state = TARGET_WARNING;
-            break;
-        
-        case TARGET_WARNING:
-            result = CL.RunTargetWarn();
-            if (result == PREV_STATE)
-                state = OBJ_DETECT;
-            else if (result == NEXT_STATE)
-                state = TARGET_FIRE;
-            break;
-
-        case TARGET_FIRE:
-            result = CL.RunTargetFire();
-            if (result == PREV_STATE)
-                state = TARGET_WARNING;
-            break;
-        
-        default: //Should never occur
-            logger->error("Invalid state!");
-            loop = false;
-            break;
+            if      (state == IDLE)             state += RunIdle();
+            else if (state == OBJ_DETECT)       state += RunObjDetect();
+            else if (state == TARGET_WARNING)   state += RunTargetWarn();
+            else if (state == TARGET_FIRE)      state += RunTargetFire();
+            else
+            {
+                //Should never occur
+                logger->error("Invalid state!");
+                loop = false;
+            }
         }
+        else sleep(1); //Wait for a mode toggle
     }
 
     logger->flush();
     return 0;
 }
-
-
 
 
 /* Function to initialize the logger with console and file sinks
