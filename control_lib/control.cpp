@@ -168,17 +168,14 @@ void MoveServo(int value)
     if (-DEAD_ZONE <= value && value <= DEAD_ZONE) //stop
     {
         SERVO_DIR = 0;
-        LOGGER->debug("Stopping servo");
     }
-    else if (value < DEAD_ZONE) //Move up
+    else if (value < DEAD_ZONE) //Move down
     {
         SERVO_DIR = 1;
-        LOGGER->debug("Moving servo up");
     }
-    else if (value > DEAD_ZONE) //Move down
+    else if (value > DEAD_ZONE) //Move up
     {
         SERVO_DIR = -1;
-        LOGGER->debug("Moving servo down");
     }
 }
 
@@ -194,16 +191,20 @@ void MoveServoThread()
         }
         else if (SERVO_DIR > 0) //Move up
         {
-            if (position < MAX_SERVO)
-                position++;
-        }
-        else if (SERVO_DIR < 0) //Move down
-        {
             if (position > MIN_SERVO)
                 position--;
         }
+        else if (SERVO_DIR < 0) //Move down
+        {
+            if (position < MAX_SERVO)
+                position++;
+        }
         pwmWrite(SERVO_WP_PIN, position);
-        std::this_thread::sleep_for(std::chrono::milliseconds(40));
+
+        if (SERVO_DIR > 0) //UP
+            std::this_thread::sleep_for(std::chrono::milliseconds(45));
+        else if (SERVO_DIR < 0) //DOWN
+            std::this_thread::sleep_for(std::chrono::milliseconds(55));
     }
 }
 
