@@ -28,7 +28,9 @@
 #define AXIS_FIRE 5
 
 //Pins
-#define SERVO_WP_PIN 26 //GPIO 12 PWM0
+#define SERVO_WP_PIN 26 //GPIO 12 PWM0, PIN 32
+#define STEPPER_STEP_PIN 21 //GPIO 5
+#define STEPPER_DIR_PIN 22 //GPIO 6
 
 //Maximums and Minimums
 #define MAX_JSTICK 32767

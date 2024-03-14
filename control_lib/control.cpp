@@ -7,21 +7,23 @@
 std::shared_ptr<spdlog::logger> LOGGER;
 std::thread js_thread;
 std::thread servo_thread;
+std::thread stepper_thread;
 bool RUN_MANUAL = true;
 bool STOP_THREADS = false;
 
 //Thread variables
 int JOYSTICK_FD = -1;
 int SERVO_DIR = 0;
+int STEPPER_DIR = 0;
 
 //Thread Functions
 void JoyStickControlThread();
 void MoveServoThread();
-
+void MoveStepperThread();
 
 void SigHandle(int sig)
 {
-    if (sig == SIGINT || sig == SIGTERM)
+    if (sig == SIGINT || sig == SIGTERM || sig == SIGKILL || sig == SIGSEGV)
     {
         //Exiting 
         printf("\nExiting via sig handle...\n");
@@ -35,6 +37,8 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
         LOGGER = logger;
         signal(SIGINT, SigHandle);
         signal(SIGTERM, SigHandle);
+        signal(SIGKILL, SigHandle);
+        signal(SIGSEGV, SigHandle);
 
         //Initialize joystick
         JOYSTICK_FD = open("/dev/input/js0", O_RDONLY);
@@ -65,12 +69,21 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
 
         //Start servo thread
         servo_thread = std::thread(MoveServoThread);
+
+        //Configure Stepper PINs
+        pinMode(STEPPER_STEP_PIN, OUTPUT);
+        pinMode(STEPPER_DIR_PIN, OUTPUT);
+
+        //Start stepper thread
+        stepper_thread = std::thread(MoveStepperThread);
+
 }
 
 void DestructCL()
 {
     //Stop beep
     SERVO_DIR = 0;
+    STEPPER_DIR = 0;
 
     STOP_THREADS = true;
 
@@ -163,8 +176,6 @@ int RunTargetFire()
 void MoveServo(int value)
 {
     //Translate joystick value to [up 1, stop 0, down -1]
-
-    printf("value %d\n", value);
     if (-DEAD_ZONE <= value && value <= DEAD_ZONE) //stop
     {
         SERVO_DIR = 0;
@@ -212,7 +223,48 @@ void MoveServoThread()
 */
 void MoveStepper(int value)
 {
-    LOGGER->debug("Moving stepper towards");
+    //Translate joystick value to [right 1, stop 0, left -1]
+    if (-DEAD_ZONE <= value && value <= DEAD_ZONE) //stop
+    {
+        STEPPER_DIR = 0;
+        LOGGER->debug("Stopping stepper");
+    }
+    else if (value < DEAD_ZONE) //Move left
+    {
+        STEPPER_DIR = -1;
+        LOGGER->debug("Moving stepper left");
+    }
+    else if (value > DEAD_ZONE) //Move right
+    {
+        STEPPER_DIR = 1;
+        LOGGER->debug("Moving stepper right");
+    }
+}
+
+void MoveStepperThread()
+{
+    while(!STOP_THREADS)
+    {
+        digitalWrite(STEPPER_STEP_PIN, 0); //stop
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); //min is .004 seconds
+
+        if (STEPPER_DIR > 0) //Move right
+        {
+            digitalWrite(STEPPER_DIR_PIN, 1);
+            std::this_thread::sleep_for(std::chrono::nanoseconds(650));
+            digitalWrite(STEPPER_STEP_PIN, 1);
+            printf("RIGHT\n");
+        }
+        else if (STEPPER_DIR < 0) //Move left
+        {
+            digitalWrite(STEPPER_DIR_PIN, 0);
+            std::this_thread::sleep_for(std::chrono::nanoseconds(650));
+            digitalWrite(STEPPER_STEP_PIN, 1);
+            printf("LEFT\n");
+        }
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); //min is .004 seconds
+    }
 }
 
 void Beep(bool on)
@@ -318,7 +370,7 @@ void JoyStickControlThread()
                     axis = get_axis_state(&event, axes);
                     printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
 
-                    if (event.number == AXIS_HORZONTAL) MoveStepper(axes[axis].y);
+                    if (event.number == AXIS_HORZONTAL) MoveStepper(axes[axis].x);
                     if (event.number == AXIS_VERTICAL)  MoveServo(axes[axis].x);
                     if (event.number == AXIS_SPOOL)     Spool(axes[axis].x);
                     if (event.number == AXIS_FIRE)      Fire(axes[axis].y);
