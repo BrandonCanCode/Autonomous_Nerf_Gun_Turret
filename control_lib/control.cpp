@@ -246,7 +246,7 @@ void MoveStepperThread()
     while(!STOP_THREADS)
     {
         digitalWrite(STEPPER_STEP_PIN, 0); //stop
-        std::this_thread::sleep_for(std::chrono::milliseconds(10)); //min is .004 seconds
+        std::this_thread::sleep_for(std::chrono::microseconds(540)); //min is .000004 seconds (4) 540
 
         if (STEPPER_DIR > 0) //Move right
         {
@@ -263,7 +263,7 @@ void MoveStepperThread()
             printf("LEFT\n");
         }
         
-        std::this_thread::sleep_for(std::chrono::milliseconds(10)); //min is .004 seconds
+        std::this_thread::sleep_for(std::chrono::microseconds(540));
     }
 }
 
