@@ -21,6 +21,11 @@ void JoyStickControlThread();
 void MoveServoThread();
 void MoveStepperThread();
 
+//Other private functions
+void Beep(bool on);
+void Fire(bool on);
+void Spool(bool on);
+
 void SigHandle(int sig)
 {
     if (sig == SIGINT || sig == SIGTERM || sig == SIGKILL || sig == SIGSEGV)
