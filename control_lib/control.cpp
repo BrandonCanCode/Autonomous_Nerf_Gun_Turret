@@ -81,9 +81,14 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
 
 void DestructCL()
 {
-    //Stop beep
+    //Stop motors
     SERVO_DIR = 0;
     STEPPER_DIR = 0;
+
+    //Stop other functions
+    Beep(false);
+    Fire(false);
+    Spool(false);
 
     STOP_THREADS = true;
 
@@ -271,16 +276,24 @@ void Beep(bool on)
 {
     if (on)
         LOGGER->debug("Beep!");
+
+    digitalWrite(BEEPER_PIN, (int)on);
 }
 
-void Spool(int value)
+void Spool(bool on)
 {
-    LOGGER->debug("Spooling!");
+    if (on)
+        LOGGER->debug("Spooling!");
+    
+    digitalWrite(SPOOL_PIN, (int)on);
 }
 
-void Fire(int value)
+void Fire(bool on)
 {
-    LOGGER->debug("Fire!");
+    if (on)
+        LOGGER->debug("Fire!");
+
+    digitalWrite(FIRE_PIN, (int)on);
 }
 
 /* Reads a joystick event from the joystick device.
@@ -372,8 +385,8 @@ void JoyStickControlThread()
 
                     if (event.number == AXIS_HORZONTAL) MoveStepper(axes[axis].x);
                     if (event.number == AXIS_VERTICAL)  MoveServo(axes[axis].x);
-                    if (event.number == AXIS_SPOOL)     Spool(axes[axis].x);
-                    if (event.number == AXIS_FIRE)      Fire(axes[axis].y);
+                    if (event.number == AXIS_SPOOL)     Spool(axes[axis].x > 0 ? true : false);
+                    if (event.number == AXIS_FIRE)      Fire(axes[axis].y > 0 ? true : false);
                 }
             }
         }
