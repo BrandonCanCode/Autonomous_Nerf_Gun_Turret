@@ -73,6 +73,11 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
         //Start stepper thread
         stepper_thread = std::thread(MoveStepperThread);
 
+        //Configure Other PINs
+        pinMode(SPOOL_PIN, OUTPUT);
+        pinMode(FIRE_PIN, OUTPUT);
+        pinMode(BEEPER_PIN, OUTPUT);
+
 }
 
 void DestructCL()
@@ -100,22 +105,24 @@ void DestructCL()
 int RunIdle()
 {
     LOGGER->debug("System in IDLE state.");
-    int test_count = 5;
+    bool awaken = false;
+
     while(!RUN_MANUAL)
     {
-        sleep(1);
-
         //Check sensors
-        //Pretend sensors are awakened
-        if (test_count--)
+        if (awaken)
         {
-            LOGGER->debug("No motion detected. Idle-ing...");
+            LOGGER->debug("Motion detected!");
+            return NEXT_STATE;
         }
         else
         {
-            return NEXT_STATE;
+            LOGGER->debug("No motion detected. Idle-ing...");
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
+    
     return 0;
 }
 
@@ -279,9 +286,14 @@ void Beep(bool on)
 void Spool(bool on)
 {
     if (on)
+    {
         LOGGER->debug("Spooling!");
+        digitalWrite(SPOOL_PIN, 1);
+    }
+    else
+        digitalWrite(SPOOL_PIN, 0);
     
-    digitalWrite(SPOOL_PIN, (int)on);
+    
 }
 
 void Fire(bool on)
@@ -349,6 +361,8 @@ void JoyStickControlThread()
     // Open joystick device
     while (!STOP_THREADS && JOYSTICK_FD == -1)
     {
+        RUN_MANUAL = false;
+
         // Periodically check if joystick exists
         if (access(device, F_OK) != -1) 
         {
