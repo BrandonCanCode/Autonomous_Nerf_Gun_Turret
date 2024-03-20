@@ -45,17 +45,8 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
         signal(SIGKILL, SigHandle);
         signal(SIGSEGV, SigHandle);
 
-        //Initialize joystick
-        JOYSTICK_FD = open("/dev/input/js0", O_RDONLY);
-        if (JOYSTICK_FD == -1)
-        {
-            logger->error("Unable to open joystick...");
-        }
-        else
-        {
-            //Startup joystick controller thread
-            js_thread = std::thread(JoyStickControlThread);
-        }
+        //Initialize joystick thread
+        js_thread = std::thread(JoyStickControlThread);
 
         //Initialize wiringPi
         if (wiringPiSetup() == -1)
@@ -353,46 +344,66 @@ size_t get_axis_state(struct js_event *event, struct axis_state axes[3])
 */
 void JoyStickControlThread()
 {
-    if (JOYSTICK_FD != -1)
+    const char *device = "/dev/input/js0";
+
+    // Open joystick device
+    while (!STOP_THREADS && JOYSTICK_FD == -1)
     {
-        struct js_event event;
-        struct axis_state axes[3] = {0};
-        size_t axis;
-
-        // This loop will exit if the controller is unplugged.
-        while (!STOP_THREADS && read_event(JOYSTICK_FD, &event) == 0)
+        // Periodically check if joystick exists
+        if (access(device, F_OK) != -1) 
         {
-            if (event.type == JS_EVENT_BUTTON && event.number == BTN_TOGGLE_MODE && event.value == true)
+            LOGGER->debug("Joystick discovered!");
+
+            JOYSTICK_FD = open(device, O_RDONLY);
+            if (JOYSTICK_FD == -1)
             {
-                RUN_MANUAL = !RUN_MANUAL;
-                if (RUN_MANUAL)
-                    LOGGER->debug("Transitioning to manual mode");
-                else
-                    LOGGER->debug("Transitioning to autonomous mode");
+                LOGGER->error("Unable to open joystick...");
             }
+        }
+        else
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    }
 
+    // Joystick is connected and taking inputs
+    struct js_event event;
+    struct axis_state axes[3] = {0};
+    size_t axis;
+
+    // This loop will exit if the controller is unplugged.
+    while (!STOP_THREADS && read_event(JOYSTICK_FD, &event) == 0)
+    {
+        if (event.type == JS_EVENT_BUTTON && event.number == BTN_TOGGLE_MODE && event.value == true)
+        {
+            RUN_MANUAL = !RUN_MANUAL;
             if (RUN_MANUAL)
-            {
-                //BUTTONS
-                if (event.type == JS_EVENT_BUTTON) //Pressed button
-                {
-                    //printf("Button %u %s\n", event.number, event.value ? "pressed" : "released");
-                    if(event.number == BTN_BEEP)
-                    {
-                        Beep(event.value);
-                    }
-                }
-                //AXIS
-                else if (event.type == JS_EVENT_AXIS)
-                {
-                    axis = get_axis_state(&event, axes);
-                    printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
+                LOGGER->debug("Transitioning to manual mode");
+            else
+                LOGGER->debug("Transitioning to autonomous mode");
+        }
 
-                    if (event.number == AXIS_HORZONTAL) MoveStepper(axes[axis].x);
-                    if (event.number == AXIS_VERTICAL)  MoveServo(axes[axis].x);
-                    if (event.number == AXIS_SPOOL)     Spool(axes[axis].x > 0 ? true : false);
-                    if (event.number == AXIS_FIRE)      Fire(axes[axis].y > 0 ? true : false);
+        if (RUN_MANUAL)
+        {
+            //BUTTONS
+            if (event.type == JS_EVENT_BUTTON) //Pressed button
+            {
+                //printf("Button %u %s\n", event.number, event.value ? "pressed" : "released");
+                if(event.number == BTN_BEEP)
+                {
+                    Beep(event.value);
                 }
+            }
+            //AXIS
+            else if (event.type == JS_EVENT_AXIS)
+            {
+                axis = get_axis_state(&event, axes);
+                printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
+
+                if (event.number == AXIS_HORZONTAL) MoveStepper(axes[axis].x);
+                if (event.number == AXIS_VERTICAL)  MoveServo(axes[axis].x);
+                if (event.number == AXIS_SPOOL)     Spool(axes[axis].x > 0 ? true : false);
+                if (event.number == AXIS_FIRE)      Fire(axes[axis].y > 0 ? true : false);
             }
         }
     }
