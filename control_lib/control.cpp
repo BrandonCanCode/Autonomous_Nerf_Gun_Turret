@@ -18,7 +18,6 @@ int SERVO_DIR = 0;
 //Thread Functions
 void JoyStickControlThread();
 void MoveServoThread();
-//void MoveDCMotorThread();
 void MoveDCMotor(int value);
 
 //Other private functions
@@ -235,46 +234,21 @@ void MoveDCMotor(int value)
     {
         LOGGER->debug("Stopping DC motor");
         digitalWrite(DC_MOTOR_MOV_PIN, 0);
+        digitalWrite(DC_MOTOR_DIR_PIN, 0);
     }
     else if (value < DEAD_ZONE) //Move left
     {
         LOGGER->debug("Moving DC motor left");
-        digitalWrite(DC_MOTOR_MOV_PIN, 1);
+        digitalWrite(DC_MOTOR_MOV_PIN, 0);
         digitalWrite(DC_MOTOR_DIR_PIN, 1);
     }
     else if (value > DEAD_ZONE) //Move right
-    {\
+    {
         LOGGER->debug("Moving DC motor right");
         digitalWrite(DC_MOTOR_MOV_PIN, 1);
         digitalWrite(DC_MOTOR_DIR_PIN, 0);
     }
 }
-
-// void MoveDCMotorThread()
-// {
-//     while(!STOP_THREADS)
-//     {
-//         digitalWrite(STEPPER_PIN, 0); //stop
-//         std::this_thread::sleep_for(std::chrono::microseconds(540)); //min is .000004 seconds (4) 540
-
-//         if (DC_DIR > 0) //Move right
-//         {
-//             digitalWrite(STEPPER_DIR_PIN, 1);
-//             std::this_thread::sleep_for(std::chrono::nanoseconds(650));
-//             digitalWrite(STEPPER_PIN, 1);
-//             printf("RIGHT\n");
-//         }
-//         else if (DC_DIR < 0) //Move left
-//         {
-//             digitalWrite(STEPPER_DIR_PIN, 0);
-//             std::this_thread::sleep_for(std::chrono::nanoseconds(650));
-//             digitalWrite(STEPPER_PIN, 1);
-//             printf("LEFT\n");
-//         }
-        
-//         std::this_thread::sleep_for(std::chrono::microseconds(540));
-//     }
-// }
 
 void Beep(bool on)
 {
