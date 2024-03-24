@@ -21,6 +21,11 @@ void JoyStickControlThread();
 void MoveServoThread();
 void MoveStepperThread();
 
+//Other private functions
+void Beep(bool on);
+void Fire(bool on);
+void Spool(bool on);
+
 void SigHandle(int sig)
 {
     if (sig == SIGINT || sig == SIGTERM || sig == SIGKILL || sig == SIGSEGV)
@@ -40,17 +45,8 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
         signal(SIGKILL, SigHandle);
         signal(SIGSEGV, SigHandle);
 
-        //Initialize joystick
-        JOYSTICK_FD = open("/dev/input/js0", O_RDONLY);
-        if (JOYSTICK_FD == -1)
-        {
-            logger->error("Unable to open joystick...");
-        }
-        else
-        {
-            //Startup joystick controller thread
-            js_thread = std::thread(JoyStickControlThread);
-        }
+        //Initialize joystick thread
+        js_thread = std::thread(JoyStickControlThread);
 
         //Initialize wiringPi
         if (wiringPiSetup() == -1)
@@ -77,19 +73,28 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
         //Start stepper thread
         stepper_thread = std::thread(MoveStepperThread);
 
+        //Configure Other PINs
+        pinMode(SPOOL_PIN, OUTPUT);
+        pinMode(FIRE_PIN, OUTPUT);
+        pinMode(BEEPER_PIN, OUTPUT);
+
 }
 
 void DestructCL()
 {
-    //Stop beep
+    //Stop motors
     SERVO_DIR = 0;
     STEPPER_DIR = 0;
 
+    //Stop other functions
+    Beep(false);
+    Fire(false);
+    Spool(false);
+
     STOP_THREADS = true;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     printf("Exiting control library...\n");
-    if (JOYSTICK_FD != -1)
-        close(JOYSTICK_FD);
 }
 
 
@@ -99,22 +104,24 @@ void DestructCL()
 int RunIdle()
 {
     LOGGER->debug("System in IDLE state.");
-    int test_count = 5;
+    bool awaken = false;
+
     while(!RUN_MANUAL)
     {
-        sleep(1);
-
         //Check sensors
-        //Pretend sensors are awakened
-        if (test_count--)
+        if (awaken)
         {
-            LOGGER->debug("No motion detected. Idle-ing...");
+            LOGGER->debug("Motion detected!");
+            return NEXT_STATE;
         }
         else
         {
-            return NEXT_STATE;
+            LOGGER->debug("No motion detected. Idle-ing...");
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
+    
     return 0;
 }
 
@@ -271,16 +278,29 @@ void Beep(bool on)
 {
     if (on)
         LOGGER->debug("Beep!");
+
+    digitalWrite(BEEPER_PIN, (int)on);
 }
 
-void Spool(int value)
+void Spool(bool on)
 {
-    LOGGER->debug("Spooling!");
+    if (on)
+    {
+        LOGGER->debug("Spooling!");
+        digitalWrite(SPOOL_PIN, 1);
+    }
+    else
+        digitalWrite(SPOOL_PIN, 0);
+    
+    
 }
 
-void Fire(int value)
+void Fire(bool on)
 {
-    LOGGER->debug("Fire!");
+    if (on)
+        LOGGER->debug("Fire!");
+
+    digitalWrite(FIRE_PIN, (int)on);
 }
 
 /* Reads a joystick event from the joystick device.
@@ -335,12 +355,48 @@ size_t get_axis_state(struct js_event *event, struct axis_state axes[3])
 */
 void JoyStickControlThread()
 {
-    if (JOYSTICK_FD != -1)
-    {
-        struct js_event event;
-        struct axis_state axes[3] = {0};
-        size_t axis;
+    const char *device = "/dev/input/js0";
+    struct js_event event;
+    struct axis_state axes[3] = {0};
+    size_t axis;
+    RUN_MANUAL = false;
 
+    while (!STOP_THREADS)
+    {
+        // Open joystick device
+        while (!STOP_THREADS && JOYSTICK_FD == -1)
+        {
+            // Periodically check if joystick exists
+            if (access(device, F_OK) != -1) 
+            {
+                LOGGER->debug("Joystick discovered");
+
+                JOYSTICK_FD = open(device, O_RDONLY);
+                if (JOYSTICK_FD == -1)
+                {
+                    LOGGER->error("Unable to open joystick...");
+                }
+                else
+                {
+                    //Device is opened and connected, change to manual mode
+                    RUN_MANUAL = true;
+                    printf("\n");
+                    printf("[=================]  Joystick Connected!  [=================]\n");
+                    printf("|                                                           |\n");
+                    printf("|           Changed turret control to manual mode           |\n");
+                    printf("|  Press '-' to change between modes (autonomous or manual) |\n");
+                    printf("|                                                           |\n");
+                    printf("[===========================================================]\n\n");
+                }
+                
+            }
+            else
+            {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+        }
+
+        // Joystick is connected and taking inputs
         // This loop will exit if the controller is unplugged.
         while (!STOP_THREADS && read_event(JOYSTICK_FD, &event) == 0)
         {
@@ -348,9 +404,9 @@ void JoyStickControlThread()
             {
                 RUN_MANUAL = !RUN_MANUAL;
                 if (RUN_MANUAL)
-                    LOGGER->debug("Transitioning to manual mode");
+                    LOGGER->debug(">>> Changed Mode to Manual");
                 else
-                    LOGGER->debug("Transitioning to autonomous mode");
+                    LOGGER->debug(">>> Changed Mode to Autonomous");
             }
 
             if (RUN_MANUAL)
@@ -372,10 +428,14 @@ void JoyStickControlThread()
 
                     if (event.number == AXIS_HORZONTAL) MoveStepper(axes[axis].x);
                     if (event.number == AXIS_VERTICAL)  MoveServo(axes[axis].x);
-                    if (event.number == AXIS_SPOOL)     Spool(axes[axis].x);
-                    if (event.number == AXIS_FIRE)      Fire(axes[axis].y);
+                    if (event.number == AXIS_SPOOL)     Spool(axes[axis].x > 0 ? true : false);
+                    if (event.number == AXIS_FIRE)      Fire(axes[axis].y > 0 ? true : false);
                 }
             }
         }
+
+        //When reading ends, close device so we can reconnect later
+        close(JOYSTICK_FD);
+        JOYSTICK_FD = -1;
     }
 }
