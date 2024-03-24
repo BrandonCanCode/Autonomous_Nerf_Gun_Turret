@@ -29,8 +29,8 @@
 
 //Pins
 #define SERVO_WP_PIN 26 //GPIO 12 PWM0, PIN 32
-#define STEPPER_STEP_PIN 21 //GPIO 5
-#define STEPPER_DIR_PIN 22 //GPIO 6
+#define DC_MOTOR_MOV_PIN 21 //GPIO 5
+#define DC_MOTOR_DIR_PIN 22 //GPIO 6
 #define BEEPER_PIN 8 //GPIO 2, PIN 3
 #define SPOOL_PIN 9 //GPIO 3, PIN 5
 #define FIRE_PIN 7 //GPIO 4, PIN 7
