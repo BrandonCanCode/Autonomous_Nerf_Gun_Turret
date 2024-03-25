@@ -32,8 +32,8 @@
 #define DC_MOTOR_MOV_PIN 21 //GPIO 5
 #define DC_MOTOR_DIR_PIN 22 //GPIO 6
 #define BEEPER_PIN 8 //GPIO 2, PIN 3
-#define SPOOL_PIN 9 //GPIO 3, PIN 5
-#define FIRE_PIN 7 //GPIO 4, PIN 7
+#define SPOOL_PIN 4 //GPIO 23, PIN 16
+#define FIRE_PIN 5 //GPIO 24, PIN 18
 
 //Maximums and Minimums
 #define MAX_JSTICK 32767

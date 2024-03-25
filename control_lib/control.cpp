@@ -253,9 +253,12 @@ void MoveDCMotor(int value)
 void Beep(bool on)
 {
     if (on)
+    {
         LOGGER->debug("Beep!");
-
-    digitalWrite(BEEPER_PIN, (int)on);
+        digitalWrite(BEEPER_PIN, 1);
+    }
+    else
+        digitalWrite(BEEPER_PIN, 0);
 }
 
 void Spool(bool on)
