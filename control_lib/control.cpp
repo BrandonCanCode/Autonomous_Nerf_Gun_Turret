@@ -14,12 +14,11 @@ bool STOP_THREADS = false;
 //Thread variables
 int JOYSTICK_FD = -1;
 int SERVO_DIR = 0;
-int STEPPER_DIR = 0;
 
 //Thread Functions
 void JoyStickControlThread();
 void MoveServoThread();
-void MoveStepperThread();
+void MoveDCMotor(int value);
 
 //Other private functions
 void Beep(bool on);
@@ -66,12 +65,12 @@ void InitCL(std::shared_ptr<spdlog::logger> logger)
         //Start servo thread
         servo_thread = std::thread(MoveServoThread);
 
-        //Configure Stepper PINs
-        pinMode(STEPPER_STEP_PIN, OUTPUT);
-        pinMode(STEPPER_DIR_PIN, OUTPUT);
+        //Configure DC motor PINs
+        pinMode(DC_MOTOR_MOV_PIN, OUTPUT);
+        pinMode(DC_MOTOR_DIR_PIN, OUTPUT);
 
         //Start stepper thread
-        stepper_thread = std::thread(MoveStepperThread);
+        //stepper_thread = std::thread(MoveDCMotorThread);
 
         //Configure Other PINs
         pinMode(SPOOL_PIN, OUTPUT);
@@ -84,12 +83,12 @@ void DestructCL()
 {
     //Stop motors
     SERVO_DIR = 0;
-    STEPPER_DIR = 0;
 
     //Stop other functions
     Beep(false);
     Fire(false);
     Spool(false);
+    MoveDCMotor(0);
 
     STOP_THREADS = true;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -228,58 +227,38 @@ void MoveServoThread()
 
 /* Move toy horizontally
 */
-void MoveStepper(int value)
+void MoveDCMotor(int value)
 {
     //Translate joystick value to [right 1, stop 0, left -1]
     if (-DEAD_ZONE <= value && value <= DEAD_ZONE) //stop
     {
-        STEPPER_DIR = 0;
-        LOGGER->debug("Stopping stepper");
+        LOGGER->debug("Stopping DC motor");
+        digitalWrite(DC_MOTOR_MOV_PIN, 0);
+        digitalWrite(DC_MOTOR_DIR_PIN, 0);
     }
     else if (value < DEAD_ZONE) //Move left
     {
-        STEPPER_DIR = -1;
-        LOGGER->debug("Moving stepper left");
+        LOGGER->debug("Moving DC motor left");
+        digitalWrite(DC_MOTOR_MOV_PIN, 0);
+        digitalWrite(DC_MOTOR_DIR_PIN, 1);
     }
     else if (value > DEAD_ZONE) //Move right
     {
-        STEPPER_DIR = 1;
-        LOGGER->debug("Moving stepper right");
-    }
-}
-
-void MoveStepperThread()
-{
-    while(!STOP_THREADS)
-    {
-        digitalWrite(STEPPER_STEP_PIN, 0); //stop
-        std::this_thread::sleep_for(std::chrono::microseconds(540)); //min is .000004 seconds (4) 540
-
-        if (STEPPER_DIR > 0) //Move right
-        {
-            digitalWrite(STEPPER_DIR_PIN, 1);
-            std::this_thread::sleep_for(std::chrono::nanoseconds(650));
-            digitalWrite(STEPPER_STEP_PIN, 1);
-            printf("RIGHT\n");
-        }
-        else if (STEPPER_DIR < 0) //Move left
-        {
-            digitalWrite(STEPPER_DIR_PIN, 0);
-            std::this_thread::sleep_for(std::chrono::nanoseconds(650));
-            digitalWrite(STEPPER_STEP_PIN, 1);
-            printf("LEFT\n");
-        }
-        
-        std::this_thread::sleep_for(std::chrono::microseconds(540));
+        LOGGER->debug("Moving DC motor right");
+        digitalWrite(DC_MOTOR_MOV_PIN, 1);
+        digitalWrite(DC_MOTOR_DIR_PIN, 0);
     }
 }
 
 void Beep(bool on)
 {
     if (on)
+    {
         LOGGER->debug("Beep!");
-
-    digitalWrite(BEEPER_PIN, (int)on);
+        digitalWrite(BEEPER_PIN, 1);
+    }
+    else
+        digitalWrite(BEEPER_PIN, 0);
 }
 
 void Spool(bool on)
@@ -426,7 +405,7 @@ void JoyStickControlThread()
                     axis = get_axis_state(&event, axes);
                     printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
 
-                    if (event.number == AXIS_HORZONTAL) MoveStepper(axes[axis].x);
+                    if (event.number == AXIS_HORZONTAL) MoveDCMotor(axes[axis].x);
                     if (event.number == AXIS_VERTICAL)  MoveServo(axes[axis].x);
                     if (event.number == AXIS_SPOOL)     Spool(axes[axis].x > 0 ? true : false);
                     if (event.number == AXIS_FIRE)      Fire(axes[axis].y > 0 ? true : false);
