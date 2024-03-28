@@ -53,6 +53,8 @@
         "typeinfo": "cpp",
         "optional": "cpp",
         "ranges": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "iostream": "cpp",
+        "istream": "cpp"
     }
 }

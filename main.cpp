@@ -2,7 +2,8 @@
  * Main loop that runs on the Raspberry Pi 5.
 */
 
-#include "control_lib/control.h"
+#include "control.h"
+#include "distance.h"
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -17,14 +18,31 @@
 
 //Globals
 std::shared_ptr<spdlog::logger> InitializeLogger();
+std::shared_ptr<spdlog::logger> LOG;
 
+void SigHandle(int sig)
+{
+    if (sig == SIGINT || sig == SIGTERM || sig == SIGKILL || sig == SIGSEGV)
+    {
+        //Exiting 
+        printf("\nExiting via sig handle...\n");
+        DestructCL();
+        exit(1);
+    }
+}
 
 int main(int argc, char **argv)
 {
     //Initialization
-    std::shared_ptr<spdlog::logger> logger = InitializeLogger();
-    logger->debug("System initializing...");
-    InitCL(logger);
+    signal(SIGINT, SigHandle);
+    signal(SIGTERM, SigHandle);
+    signal(SIGKILL, SigHandle);
+    signal(SIGSEGV, SigHandle);
+
+    LOG = InitializeLogger();
+    LOG->debug("System initializing...");
+    InitCL();
+    InitDist();
 
     int state = IDLE;
     bool loop = true;
@@ -39,14 +57,14 @@ int main(int argc, char **argv)
             else
             {
                 //Should never occur
-                logger->error("Invalid state!");
+                LOG->error("Invalid state!");
                 loop = false;
             }
         }
         else sleep(1); //Wait for a mode toggle
     }
 
-    logger->flush();
+    LOG->flush();
     return 0;
 }
 
