@@ -3,7 +3,6 @@
 */
 
 #include "control.h"
-#include "distance.h"
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -42,7 +41,6 @@ int main(int argc, char **argv)
     LOG = InitializeLogger();
     LOG->debug("System initializing...");
     InitCL();
-    InitDist();
 
     int state = IDLE;
     bool loop = true;
