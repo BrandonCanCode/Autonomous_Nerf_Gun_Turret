@@ -8,5 +8,8 @@ OUT = run
 all:
 	$(CC) $(SRCS) -o $(OUT) $(CFLAGS)
 
+test:
+	$(CC) test_prog.cpp control.cpp -o test_out $(CFLAGS)
+
 clean:
 	rm -f $(OUT)

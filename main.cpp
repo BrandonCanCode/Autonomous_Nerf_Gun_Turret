@@ -21,7 +21,7 @@ std::shared_ptr<spdlog::logger> LOG;
 
 void SigHandle(int sig)
 {
-    if (sig == SIGINT || sig == SIGTERM || sig == SIGKILL || sig == SIGSEGV)
+    if (sig == SIGINT || sig == SIGTERM || sig == SIGSEGV)
     {
         //Exiting 
         printf("\nExiting via sig handle...\n");
@@ -35,7 +35,6 @@ int main(int argc, char **argv)
     //Initialization
     signal(SIGINT, SigHandle);
     signal(SIGTERM, SigHandle);
-    signal(SIGKILL, SigHandle);
     signal(SIGSEGV, SigHandle);
 
     LOG = InitializeLogger();
@@ -59,7 +58,11 @@ int main(int argc, char **argv)
                 loop = false;
             }
         }
-        else sleep(1); //Wait for a mode toggle
+        else 
+        {
+            sleep(1); //Wait for a mode toggle
+            state = IDLE;
+        }
     }
 
     LOG->flush();

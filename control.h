@@ -78,8 +78,8 @@ typedef struct {
 #define PIXEL_RADIUS 10
 
 //Distances
-#define WARNING_DIST 20
-#define FIRE_DIST 10
+#define WARNING_DIST 7
+#define FIRE_DIST 3
 
 //Global
 extern bool RUN_MANUAL;

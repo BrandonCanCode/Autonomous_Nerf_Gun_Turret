@@ -12,6 +12,7 @@ std::thread follow_thread;
 bool RUN_MANUAL = true;
 bool STOP_THREADS = false;
 bool FOLLOW_OBJ = false;
+char message[256];
 
 //Thread variables
 int JOYSTICK_FD = -1;
@@ -36,6 +37,7 @@ void MoveServoThread();
 void FollowObjectThread();
 
 //Other private functions
+void StopEverything();
 void MoveDCMotor(int value);
 void Beep(bool on);
 void Fire(bool on);
@@ -52,14 +54,14 @@ void InitCL()
         //Initialize wiringPi
         if (wiringPiSetup() == -1)
         {
-            printf ("Setup wiringPi Failed!\n");
+            LOG->error("Setup wiringPi Failed!\n");
             DestructCL();
             exit(1);
         }
-        printf ("Reminder: this program must be run with sudo.\n");
+        LOG->debug("Reminder: this program must be run with sudo.\n");
 
         //Configure Servo PIN
-        pinMode (SERVO_WP_PIN, PWM_OUTPUT);
+        pinMode(SERVO_WP_PIN, PWM_OUTPUT);
         pwmSetMode(PWM_MODE_MS);
         pwmSetClock (1651);  //10ms period
         pwmSetRange(1000);
@@ -86,20 +88,24 @@ void InitCL()
 
 void DestructCL()
 {
-    //Stop motors
-    SERVO_DIR = 0;
+    LOG->debug("Destroying control library!");
 
-    //Stop other functions
-    Beep(false);
-    Fire(false);
-    Spool(false);
-    MoveDCMotor(0);
+    StopEverything();
 
     STOP_THREADS = true;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     DestructDist();
 
-    printf("Exiting control library...\n");
+    LOG->debug("Exiting control library...");
+}
+
+void StopEverything()
+{
+    SERVO_DIR = 0;
+    Beep(false);
+    Fire(false);
+    Spool(false);
+    MoveDCMotor(0);
 }
 
 
@@ -112,7 +118,7 @@ int RunIdle()
     FOLLOW_OBJ = false;
     
     //Destroy a follow thread if running
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     if (follow_thread.joinable())
     {
         follow_thread.join();
@@ -125,7 +131,13 @@ int RunIdle()
         int P2 = digitalRead(PIR2_PIN); //SE
         int P3 = digitalRead(PIR3_PIN); //SW
         int P4 = digitalRead(PIR4_PIN); //NW
-        printf("P1=%d P2=%d P3=%d P4=%d\n",P1,P2,P3,P4);
+        sprintf(message, "P1=%d P2=%d P3=%d P4=%d",P1,P2,P3,P4);
+        LOG->debug(message);
+        //std::this_thread::sleep_for(std::chrono::seconds(3));
+        // P1=0;
+        // P2=0;
+        // P3=0;
+        // continue;
         
         //North
         if (P1 && P4)
@@ -216,33 +228,36 @@ int RunIdle()
 int RunObjDetect()
 {
     LOG->debug("System in Object Detection state.");
-
-    // Start up object following thread
-    FOLLOW_OBJ = true;
-    follow_thread = std::thread(FollowObjectThread);
-
-    // Run until we think the target is in warning radius
-    char message[256];
-    int time_out = MAX_TIMEOUT_S;
-    while (0 < time_out)
+    if (!RUN_MANUAL)
     {
-        if (target_distance == -1.0)
-        {
-            time_out--;
-        }
-        else
-        {
-            //Reset timeout
-            sprintf(message, "Target is %.f meters away", target_distance);
-            LOG->debug(message);
-            time_out = MAX_TIMEOUT_S;
+        // Start up object following thread
+        FOLLOW_OBJ = true;
+        follow_thread = std::thread(FollowObjectThread);
 
-            //Check if we need to go to warning
-            if (target_distance <= WARNING_DIST)
-                return NEXT_STATE;
-        }
+        // Run until we think the target is in warning radius
+        int time_out = MAX_TIMEOUT_S;
+        while (0 < time_out)
+        {
+            if (target_distance == -1.0)
+            {
+                sprintf(message, "Timeout=%d (Object Detect)", time_out);
+                LOG->debug(message);
+                time_out--;
+            }
+            else
+            {
+                //Reset timeout
+                sprintf(message, "Target is %.f meters away", target_distance);
+                LOG->debug(message);
+                time_out = MAX_TIMEOUT_S;
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+                //Check if we need to go to warning
+                if (target_distance <= WARNING_DIST)
+                    return NEXT_STATE;
+            }
+
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
     }
 
     return PREV_STATE;
@@ -255,10 +270,12 @@ int RunTargetWarn()
     // Run until we think the target is in fire radius or timeout
     int time_out = MAX_TIMEOUT_S;
     int beep_count = 0;
-    while (0 < time_out)
+    while (0 < time_out && !RUN_MANUAL)
     {
         if (target_distance == -1.0)
         {
+            sprintf(message, "Timeout=%d (Warning)", time_out);
+            LOG->debug(message);
             time_out--;
         }
         else
@@ -274,17 +291,18 @@ int RunTargetWarn()
             }
         }
         
-        //Run beeper every 4 seconds
+        //Run beeper every 3 seconds
         beep_count++;
-        if (beep_count == 4) 
+        if (beep_count == 3) 
         {
             Beep(true);
             beep_count = 0;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            Beep(false);
+            std::this_thread::sleep_for(std::chrono::milliseconds(900));
         }
         else
-            Beep(false);
-        
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     return PREV_STATE;
@@ -295,29 +313,41 @@ int RunTargetFire()
 {
     LOG->debug("System in Target Fire state.");
 
-    //Sound fire
-    Spool(true);
-    Beep(true);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    Beep(false);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    Beep(true);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    Beep(false);
+    if (!RUN_MANUAL)
+    {
+        //Sound fire
+        Spool(true);
+        Beep(true);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        Beep(false);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-    //Spool
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+        //Spool
+        std::this_thread::sleep_for(std::chrono::seconds(3));
 
-    //Fire a burst shot
-    Fire(true);
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-    Fire(false);
-    Spool(false);
+        //Fire a burst shot
+        Beep(true);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        Beep(false);
 
-    //Give a 5 second cool down
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+        Fire(true);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        Fire(false);
+        Spool(false);
 
-    return PREV_STATE;
+        //Give a 5 second cool down
+        Beep(true);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        Beep(false);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+        LOG->debug("Cooling down for 5 seconds...");
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+
+        return PREV_STATE;
+    }
+    
+    return 0;
 }
 
 
@@ -344,6 +374,7 @@ void MoveServo(int value)
 
 void MoveServoThread()
 {
+    LOG->debug("Starting Servo Thread");
     int position = 230;
 
     while(!STOP_THREADS)
@@ -369,6 +400,7 @@ void MoveServoThread()
         else if (SERVO_DIR < 0) //DOWN
             std::this_thread::sleep_for(std::chrono::milliseconds(55));
     }
+    LOG->debug("Exiting Servo Thread");
 }
 
 
@@ -401,11 +433,14 @@ void Beep(bool on)
 {
     if (on)
     {
-        LOG->debug("Beep!");
+        LOG->debug("Beep on!");
         digitalWrite(BEEPER_PIN, 1);
     }
     else
+    {
+        LOG->debug("Beep off");
         digitalWrite(BEEPER_PIN, 0);
+    }
 }
 
 void Spool(bool on)
@@ -416,7 +451,10 @@ void Spool(bool on)
         digitalWrite(SPOOL_PIN, 1);
     }
     else
+    {
+        LOG->debug("Spooling off!");
         digitalWrite(SPOOL_PIN, 0);
+    }
     
     
 }
@@ -429,7 +467,10 @@ void Fire(bool on)
         digitalWrite(FIRE_PIN, 1);
     }
     else
+    {
+        LOG->debug("Fire off");
         digitalWrite(FIRE_PIN, 0);
+    }
 }
 
 /* Reads a joystick event from the joystick device.
@@ -516,6 +557,9 @@ void JoyStickControlThread()
                     printf("|  Press '-' to change between modes (autonomous or manual) |\n");
                     printf("|                                                           |\n");
                     printf("[===========================================================]\n\n");
+
+                    //Stop anything that motors that could be running
+                    StopEverything();
                 }
                 
             }
@@ -540,6 +584,17 @@ void JoyStickControlThread()
 
             if (RUN_MANUAL)
             {
+                //Destroy the follow thread if running
+                if (FOLLOW_OBJ == true)
+                {
+                    FOLLOW_OBJ = false;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    if (follow_thread.joinable())
+                    {
+                        follow_thread.join();
+                    }
+                }
+
                 //BUTTONS
                 if (event.type == JS_EVENT_BUTTON) //Pressed button
                 {
@@ -553,7 +608,7 @@ void JoyStickControlThread()
                 else if (event.type == JS_EVENT_AXIS)
                 {
                     axis = get_axis_state(&event, axes);
-                    printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
+                    //printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
 
                     if (event.number == AXIS_HORZONTAL) MoveDCMotor(axes[axis].x);
                     if (event.number == AXIS_VERTICAL)  MoveServo(axes[axis].x);
@@ -659,28 +714,33 @@ void InitDist()
     }
 
     //Start John's Object Detection (Python script)
-    system("nohup python3 set_target.py 0 0 0 &");
+    system("nohup python3 set_target.py 0 320 240 &");
 }
 
 
 void DestructDist()
 {
+    LOG->debug("Destroying distance camera");
+
     // Stop the pipeline streaming
     rs2_pipeline_stop(pipeline, &e);
     check_error(e);
 
     // Release resources
+    LOG->debug("Releasing camera resources");
     rs2_delete_pipeline_profile(pipeline_profile);
     rs2_delete_config(config);
     rs2_delete_pipeline(pipeline);
-    rs2_delete_device(dev);
-    rs2_delete_device_list(device_list);
-    rs2_delete_context(ctx);
+    // rs2_delete_device(dev);
+    // rs2_delete_device_list(device_list);
+    // rs2_delete_context(ctx);
 
     //Stop John's Object Detection (python script)
+    LOG->debug("Killing object detection script");
     system("pkill -f set_target.py");
     
     // Detach and destroy the shared memory segment
+    LOG->debug("Destroying shared memory");
     shmdt(shared_mem); 
     shmctl(shmid, IPC_RMID, NULL);
 }
@@ -732,8 +792,9 @@ void GetDistances(float *distances)
             {
                 distances[j] = rs2_depth_frame_get_distance(frame, shared_mem[j].x, shared_mem[j].y, &e);
                 check_error(e);
-                printf("Target %d (%d,%d) is %.3f meters away.\n", 
+                sprintf(message, "Target %d (%d,%d) is %.3f meters away.", 
                     shared_mem[j].target, shared_mem[j].x, shared_mem[j].y, distances[j]);
+                LOG->debug(message);
             }
         }
 
@@ -749,7 +810,6 @@ int GetClosestTarget(target_info* t)
     float close_distance = FLT_MAX;
     int index = -1;
     float distances[MAX_TARGETS];
-    t = NULL;
 
     GetDistances(distances);
     for(int i=0; i<MAX_TARGETS; i++)
@@ -768,7 +828,10 @@ int GetClosestTarget(target_info* t)
     }
     else
     {
-        t = &shared_mem[index];
+        t->target = shared_mem[index].target;
+        t->x = shared_mem[index].x;
+        t->y = shared_mem[index].y;
+        
         target_distance = close_distance;
     }
 
@@ -781,26 +844,30 @@ void FollowObjectThread()
 {
     LOG->debug("Starting follow thread!");
 
-    target_info *t = NULL;
+    target_info t;
     while(!STOP_THREADS && FOLLOW_OBJ)
     {
-        if(!GetClosestTarget(t))
+        if(!GetClosestTarget(&t))
         {
+            sprintf(message, "Target %d (%d, %d) and %f meters", 
+                t.target, t.x, t.y, target_distance);
+            LOG->debug(message);
+
             //Move left
-            if (t->x < CENTER_X-PIXEL_RADIUS)  
+            if (t.x < CENTER_X-PIXEL_RADIUS)  
                 MoveDCMotor(LEFT);  
             //Move right
-            else if (CENTER_X+PIXEL_RADIUS < t->y) 
+            else if (CENTER_X+PIXEL_RADIUS < t.x) 
                  MoveDCMotor(RIGHT);  
             //STOP
             else                                    
                 MoveDCMotor(STOP);
 
             //Move UP
-            if (t->y < CENTER_Y-PIXEL_RADIUS)
+            if (t.y < CENTER_Y-PIXEL_RADIUS)
                 MoveServo(UP);
             //Move Down
-            else if (CENTER_Y+PIXEL_RADIUS < t->y)
+            else if (CENTER_Y+PIXEL_RADIUS < t.y)
                 MoveDCMotor(DOWN);
             //STOP
             else
