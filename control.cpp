@@ -231,8 +231,11 @@ int RunObjDetect()
     if (!RUN_MANUAL)
     {
         // Start up object following thread
-        FOLLOW_OBJ = true;
-        follow_thread = std::thread(FollowObjectThread);
+        if (FOLLOW_OBJ == false)
+        {
+            FOLLOW_OBJ = true;
+            follow_thread = std::thread(FollowObjectThread);
+        }
 
         // Run until we think the target is in warning radius
         int time_out = MAX_TIMEOUT_S;
@@ -247,8 +250,6 @@ int RunObjDetect()
             else
             {
                 //Reset timeout
-                sprintf(message, "Target is %.f meters away", target_distance);
-                LOG->debug(message);
                 time_out = MAX_TIMEOUT_S;
 
                 //Check if we need to go to warning
@@ -268,27 +269,13 @@ int RunTargetWarn()
     LOG->debug("System in Target Warning state.");
 
     // Run until we think the target is in fire radius or timeout
-    int time_out = MAX_TIMEOUT_S;
     int beep_count = 0;
-    while (0 < time_out && !RUN_MANUAL)
+    while (!RUN_MANUAL && target_distance != -1.0 && target_distance < WARNING_DIST)
     {
-        if (target_distance == -1.0)
+        //Check if we need to go to firing state
+        if (target_distance <= FIRE_DIST)
         {
-            sprintf(message, "Timeout=%d (Warning)", time_out);
-            LOG->debug(message);
-            time_out--;
-        }
-        else
-        {
-            //Reset timeout
-            time_out = MAX_TIMEOUT_S;
-
-            //Check if we need to go to warning
-            if (target_distance <= FIRE_DIST)
-            {
-                Beep(false);
-                return NEXT_STATE;
-            }
+            return NEXT_STATE;
         }
         
         //Run beeper every 3 seconds
@@ -411,19 +398,19 @@ void MoveDCMotor(int value)
     //Translate joystick value to [right 1, stop 0, left -1]
     if (-DEAD_ZONE <= value && value <= DEAD_ZONE) //stop
     {
-        LOG->debug("Stopping DC motor");
+        //LOG->debug("Stopping DC motor");
         digitalWrite(DC_MOTOR_MOV_PIN, 0);
         digitalWrite(DC_MOTOR_DIR_PIN, 0);
     }
     else if (value < -DEAD_ZONE) //Move left
     {
-        LOG->debug("Moving DC motor left");
+        //LOG->debug("Moving DC motor left");
         digitalWrite(DC_MOTOR_MOV_PIN, 0);
         digitalWrite(DC_MOTOR_DIR_PIN, 1);
     }
     else if (value > DEAD_ZONE) //Move right
     {
-        LOG->debug("Moving DC motor right");
+        //LOG->debug("Moving DC motor right");
         digitalWrite(DC_MOTOR_MOV_PIN, 1);
         digitalWrite(DC_MOTOR_DIR_PIN, 0);
     }
@@ -792,9 +779,8 @@ void GetDistances(float *distances)
             {
                 distances[j] = rs2_depth_frame_get_distance(frame, shared_mem[j].x, shared_mem[j].y, &e);
                 check_error(e);
-                sprintf(message, "Target %d (%d,%d) is %.3f meters away.", 
-                    shared_mem[j].target, shared_mem[j].x, shared_mem[j].y, distances[j]);
-                LOG->debug(message);
+                // printf(message, "Target %d (%d,%d) is %.3f meters away.\n", 
+                //     shared_mem[j].target, shared_mem[j].x, shared_mem[j].y, distances[j]);
             }
         }
 
@@ -849,9 +835,10 @@ void FollowObjectThread()
     {
         if(!GetClosestTarget(&t))
         {
-            sprintf(message, "Target %d (%d, %d) and %f meters", 
-                t.target, t.x, t.y, target_distance);
-            LOG->debug(message);
+            // sprintf(message, "Target %d (%d, %d) and %f meters", 
+            //     t.target, t.x, t.y, target_distance);
+            // LOG->debug(message);
+            printf("Target %d (%d, %d) and %f meters\n", t.target, t.x, t.y, target_distance);
 
             //Move left
             if (t.x < CENTER_X-PIXEL_RADIUS)  
