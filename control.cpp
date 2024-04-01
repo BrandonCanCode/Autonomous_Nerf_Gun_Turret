@@ -24,6 +24,7 @@ void MoveDCMotor(int value);
 void Beep(bool on);
 void Fire(bool on);
 void Spool(bool on);
+void DestructDist();
 
 void InitCL()
 {
@@ -76,6 +77,7 @@ void DestructCL()
     STOP_THREADS = true;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+    DestructDist();
     printf("Exiting control library...\n");
 }
 

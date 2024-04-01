@@ -116,12 +116,13 @@ void InitDist()
     thread = std::thread(RunDistanceThread);
 
     //Start John's Object Detection (Python script)
-    system("nohup python3 set_target.py 0 120 340 &");
+    system("nohup python3 no_cam.py &");
 }
 
 
 void DestructDist()
 {
+    LOG->debug("Destroying distance lib");
     STOP = true;
 
     // Stop the pipeline streaming
@@ -129,15 +130,16 @@ void DestructDist()
     check_error(e);
 
     // Release resources
-    rs2_delete_pipeline_profile(pipeline_profile);
-    rs2_delete_config(config);
-    rs2_delete_pipeline(pipeline);
-    rs2_delete_device(dev);
-    rs2_delete_device_list(device_list);
-    rs2_delete_context(ctx);
+    // rs2_delete_pipeline_profile(pipeline_profile);
+    // rs2_delete_config(config);
+    // rs2_delete_pipeline(pipeline);
+    // rs2_delete_device(dev);
+    // rs2_delete_device_list(device_list);
+    // rs2_delete_context(ctx);
 
     //Stop John's Object Detection (python script)
-    system("pkill -f set_target.py");
+    LOG->debug("Killing object detection script");
+    system("pkill -f no_cam.py");
     
     // Detach and destroy the shared memory segment
     shmdt(shared_mem); 
@@ -188,7 +190,8 @@ void RunDistanceThread()
                 {
                     float distance = rs2_depth_frame_get_distance(frame, shared_mem[j].x, shared_mem[j].y, &e);
                     check_error(e);
-                    printf("Target %d is %.3f meters away.\n", shared_mem[j].target, distance);
+                    printf("Target %d (%d,%d) is %.3f meters away.\n", 
+                        shared_mem[j].target, shared_mem[j].x, shared_mem[j].y, distance);
                 }
             }
 
