@@ -3,7 +3,6 @@
 */
 
 #include "control.h"
-#include "distance.h"
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -22,7 +21,7 @@ std::shared_ptr<spdlog::logger> LOG;
 
 void SigHandle(int sig)
 {
-    if (sig == SIGINT || sig == SIGTERM || sig == SIGKILL || sig == SIGSEGV)
+    if (sig == SIGINT || sig == SIGTERM || sig == SIGSEGV)
     {
         //Exiting 
         printf("\nExiting via sig handle...\n");
@@ -36,13 +35,11 @@ int main(int argc, char **argv)
     //Initialization
     signal(SIGINT, SigHandle);
     signal(SIGTERM, SigHandle);
-    signal(SIGKILL, SigHandle);
     signal(SIGSEGV, SigHandle);
 
     LOG = InitializeLogger();
     LOG->debug("System initializing...");
     InitCL();
-    InitDist();
 
     int state = IDLE;
     bool loop = true;
@@ -61,7 +58,11 @@ int main(int argc, char **argv)
                 loop = false;
             }
         }
-        else sleep(1); //Wait for a mode toggle
+        else 
+        {
+            sleep(1); //Wait for a mode toggle
+            state = IDLE;
+        }
     }
 
     LOG->flush();
