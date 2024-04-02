@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <wiringPi.h>
+#include <softPwm.h>
 #include <chrono>
 #include <stdint.h>
 #include <sys/ipc.h>
@@ -57,14 +58,14 @@ typedef struct {
 #define PIR4_PIN 30 //GPIO 0,  PIN 27
 
 //Maximums and Minimums
+#define DEAD_ZONE 10
 #define MAX_JSTICK 32767
 #define MAX_SERVO 250
 #define MIN_SERVO 220
 #define MAX_TIMEOUT_S 10
 
-#define DEAD_ZONE 10
-#define RIGHT DEAD_ZONE+1
-#define LEFT -DEAD_ZONE-1
+#define RIGHT MAX_JSTICK
+#define LEFT -1*MAX_JSTICK
 #define UP DEAD_ZONE+1
 #define DOWN -DEAD_ZONE-1
 #define STOP 0
@@ -75,11 +76,15 @@ typedef struct {
 #define HEIGHT 480
 #define CENTER_X WIDTH/2
 #define CENTER_Y HEIGHT/2
-#define PIXEL_RADIUS 10
+#define PIXEL_RADIUS 20
 
 //Distances
 #define WARNING_DIST 7
 #define FIRE_DIST 3
+
+//Macro functions
+#define max(x,y) (x > y ? x : y)
+#define min(x,y) (x < y ? x : y)
 
 //Global
 extern bool RUN_MANUAL;

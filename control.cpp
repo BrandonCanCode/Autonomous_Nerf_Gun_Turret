@@ -70,8 +70,10 @@ void InitCL()
         servo_thread = std::thread(MoveServoThread);
 
         //Configure DC motor PINs
-        pinMode(DC_MOTOR_MOV_PIN, OUTPUT);
-        pinMode(DC_MOTOR_DIR_PIN, OUTPUT);
+        softPwmCreate(DC_MOTOR_MOV_PIN, 0, 100);
+        softPwmCreate(DC_MOTOR_DIR_PIN, 0, 100);
+        // pinMode(DC_MOTOR_MOV_PIN, OUTPUT);
+        // pinMode(DC_MOTOR_DIR_PIN, OUTPUT);
 
         //Configure Other PINs
         pinMode(SPOOL_PIN, OUTPUT);
@@ -94,6 +96,8 @@ void DestructCL()
 
     STOP_THREADS = true;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    softPwmStop(DC_MOTOR_MOV_PIN);
+    softPwmStop(DC_MOTOR_DIR_PIN);
     DestructDist();
 
     LOG->debug("Exiting control library...");
@@ -254,7 +258,9 @@ int RunObjDetect()
 
                 //Check if we need to go to warning
                 if (target_distance <= WARNING_DIST)
-                    return NEXT_STATE;
+                {
+                    //return NEXT_STATE;
+                }
             }
 
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -392,6 +398,7 @@ void MoveServoThread()
 
 
 /* Move toy horizontally
+ * Value range between -MAX_JSTICK to +MAX_JSTICK
 */
 void MoveDCMotor(int value)
 {
@@ -399,20 +406,26 @@ void MoveDCMotor(int value)
     if (-DEAD_ZONE <= value && value <= DEAD_ZONE) //stop
     {
         //LOG->debug("Stopping DC motor");
-        digitalWrite(DC_MOTOR_MOV_PIN, 0);
-        digitalWrite(DC_MOTOR_DIR_PIN, 0);
+        // digitalWrite(DC_MOTOR_MOV_PIN, 0);
+        // digitalWrite(DC_MOTOR_DIR_PIN, 0);
+        softPwmWrite(DC_MOTOR_MOV_PIN, 0);
+        softPwmWrite(DC_MOTOR_DIR_PIN, 0);
     }
     else if (value < -DEAD_ZONE) //Move left
     {
         //LOG->debug("Moving DC motor left");
-        digitalWrite(DC_MOTOR_MOV_PIN, 0);
-        digitalWrite(DC_MOTOR_DIR_PIN, 1);
+        //digitalWrite(DC_MOTOR_MOV_PIN, 0);
+        //digitalWrite(DC_MOTOR_DIR_PIN, 1);
+        softPwmWrite(DC_MOTOR_MOV_PIN, 0);
+        softPwmWrite(DC_MOTOR_DIR_PIN, (int)((-1*value/(float)MAX_JSTICK)*100.0));
     }
     else if (value > DEAD_ZONE) //Move right
     {
         //LOG->debug("Moving DC motor right");
-        digitalWrite(DC_MOTOR_MOV_PIN, 1);
-        digitalWrite(DC_MOTOR_DIR_PIN, 0);
+        // digitalWrite(DC_MOTOR_MOV_PIN, 1);
+        // digitalWrite(DC_MOTOR_DIR_PIN, 0);
+        softPwmWrite(DC_MOTOR_MOV_PIN, (int)((value/(float)MAX_JSTICK)*100.0));
+        softPwmWrite(DC_MOTOR_DIR_PIN, 0);
     }
 }
 
@@ -435,12 +448,12 @@ void Spool(bool on)
     if (on)
     {
         LOG->debug("Spooling!");
-        digitalWrite(SPOOL_PIN, 1);
+        // digitalWrite(SPOOL_PIN, 1);
     }
     else
     {
         LOG->debug("Spooling off!");
-        digitalWrite(SPOOL_PIN, 0);
+        // digitalWrite(SPOOL_PIN, 0);
     }
     
     
@@ -451,12 +464,12 @@ void Fire(bool on)
     if (on)
     {
         LOG->debug("Fire!");
-        digitalWrite(FIRE_PIN, 1);
+        // digitalWrite(FIRE_PIN, 1);
     }
     else
     {
         LOG->debug("Fire off");
-        digitalWrite(FIRE_PIN, 0);
+        // digitalWrite(FIRE_PIN, 0);
     }
 }
 
@@ -619,8 +632,10 @@ void check_error(rs2_error* e)
 {
     if (e)
     {
-        printf("rs_error was raised when calling %s(%s):\n", rs2_get_failed_function(e), rs2_get_failed_args(e));
-        printf("    %s\n", rs2_get_error_message(e));
+        sprintf(message, "rs_error was raised when calling %s(%s):", rs2_get_failed_function(e), rs2_get_failed_args(e));
+        LOG->error(message);
+        sprintf(message, "    %s", rs2_get_error_message(e));
+        LOG->error(message);
         exit(EXIT_FAILURE);
     }
 }
@@ -659,6 +674,7 @@ void InitDist()
 
     // Get the first connected device
     // The returned object should be released with rs2_delete_device(...)
+    LOG->debug("Creating realsense device...");
     dev = rs2_create_device(device_list, 0, &e);
     check_error(e);
 
@@ -666,20 +682,24 @@ void InitDist()
 
     // Create a pipeline to configure, start and stop camera streaming
     // The returned object should be released with rs2_delete_pipeline(...)
+    LOG->debug("Creating realsense pipeline...");
     pipeline = rs2_create_pipeline(ctx, &e);
     check_error(e);
 
     // Create a config instance, used to specify hardware configuration
     // The retunred object should be released with rs2_delete_config(...)
+    LOG->debug("Creating realsense config...");
     config = rs2_create_config(&e);
     check_error(e);
 
     // Request a specific configuration
+    LOG->debug("Applying realsense configuration to the stream...");
     rs2_config_enable_stream(config, RS2_STREAM_DEPTH, 0, WIDTH, HEIGHT, RS2_FORMAT_Z16, 30, &e);
     check_error(e);
 
     // Start the pipeline streaming
     // The retunred object should be released with rs2_delete_pipeline_profile(...)
+    LOG->debug("Starting realsense pipeline...");
     pipeline_profile = rs2_pipeline_start_with_config(pipeline, config, &e);
     if (e)
     {
@@ -701,7 +721,8 @@ void InitDist()
     }
 
     //Start John's Object Detection (Python script)
-    system("nohup python3 set_target.py 0 320 240 &");
+    LOG->debug("Starting object detection script...");
+    system("nohup python3 no_cam.py &");
 }
 
 
@@ -718,13 +739,13 @@ void DestructDist()
     rs2_delete_pipeline_profile(pipeline_profile);
     rs2_delete_config(config);
     rs2_delete_pipeline(pipeline);
-    // rs2_delete_device(dev);
-    // rs2_delete_device_list(device_list);
-    // rs2_delete_context(ctx);
+    rs2_delete_device(dev);
+    rs2_delete_device_list(device_list);
+    rs2_delete_context(ctx);
 
     //Stop John's Object Detection (python script)
     LOG->debug("Killing object detection script");
-    system("pkill -f set_target.py");
+    system("pkill -f no_cam.py &");
     
     // Detach and destroy the shared memory segment
     LOG->debug("Destroying shared memory");
@@ -838,27 +859,35 @@ void FollowObjectThread()
             // sprintf(message, "Target %d (%d, %d) and %f meters", 
             //     t.target, t.x, t.y, target_distance);
             // LOG->debug(message);
-            printf("Target %d (%d, %d) and %f meters\n", t.target, t.x, t.y, target_distance);
+            int speed = max(min((15.0/(float)target_distance)*MAX_JSTICK, 30000), 10000);
+            printf("Target %d (%d, %d) and %f meters, speed %d\n", t.target, t.x, t.y, target_distance, speed);
 
             //Move left
             if (t.x < CENTER_X-PIXEL_RADIUS)  
-                MoveDCMotor(LEFT);  
+                MoveDCMotor(-1*speed);  
             //Move right
             else if (CENTER_X+PIXEL_RADIUS < t.x) 
-                 MoveDCMotor(RIGHT);  
+                 MoveDCMotor(speed);  
             //STOP
             else                                    
                 MoveDCMotor(STOP);
 
-            //Move UP
-            if (t.y < CENTER_Y-PIXEL_RADIUS)
-                MoveServo(UP);
             //Move Down
-            else if (CENTER_Y+PIXEL_RADIUS < t.y)
-                MoveDCMotor(DOWN);
+            if (t.y < CENTER_Y-(PIXEL_RADIUS/2))
+                MoveServo(DOWN);
+            //Move Up
+            else if (CENTER_Y+(PIXEL_RADIUS/2) < t.y)
+                MoveServo(UP);
             //STOP
             else
-                MoveDCMotor(STOP);
+                MoveServo(STOP);
+            
+            MoveServo(STOP);
+        }
+        else
+        {
+            MoveDCMotor(STOP);
+            MoveServo(STOP);
         }
     }
 
