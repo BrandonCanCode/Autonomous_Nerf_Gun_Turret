@@ -873,16 +873,22 @@ void FollowObjectThread()
                 MoveDCMotor(STOP);
 
             //Move Down
-            if (t.y < CENTER_Y-(PIXEL_RADIUS/2))
+            if (t.y < (CENTER_Y-PIXEL_RADIUS))
+            {
                 MoveServo(DOWN);
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                MoveServo(STOP);
+            }
             //Move Up
-            else if (CENTER_Y+(PIXEL_RADIUS/2) < t.y)
+            else if ((CENTER_Y+PIXEL_RADIUS) < t.y)
+            {
                 MoveServo(UP);
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                MoveServo(STOP);
+            }
             //STOP
             else
                 MoveServo(STOP);
-            
-            MoveServo(STOP);
         }
         else
         {

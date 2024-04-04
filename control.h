@@ -61,7 +61,7 @@ typedef struct {
 #define DEAD_ZONE 10
 #define MAX_JSTICK 32767
 #define MAX_SERVO 250
-#define MIN_SERVO 220
+#define MIN_SERVO 216
 #define MAX_TIMEOUT_S 10
 
 #define RIGHT MAX_JSTICK
@@ -76,7 +76,7 @@ typedef struct {
 #define HEIGHT 480
 #define CENTER_X WIDTH/2
 #define CENTER_Y HEIGHT/2
-#define PIXEL_RADIUS 20
+#define PIXEL_RADIUS 40
 
 //Distances
 #define WARNING_DIST 7
