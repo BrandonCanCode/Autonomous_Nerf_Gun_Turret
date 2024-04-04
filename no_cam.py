@@ -115,5 +115,5 @@ if __name__ == "__main__":
     target_infos_bytes = shm.read(5 * struct.calcsize("III"))
         # Unpack target_info structs
     target_infos = [struct.unpack("III", target_infos_bytes[i*12:(i+1)*12]) for i in range(5)]
-    engine = PoseEngine('models/mobilenet/posenet_mobilenet_v1_075_481_641_quant_decoder_edgetpu.tflite')
+    engine = PoseEngine('posenet_mobilenet_v1_075_481_641_quant_decoder_edgetpu.tflite')
     capture_frames(video_device,target_infos,engine)
