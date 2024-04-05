@@ -52,6 +52,7 @@ typedef struct {
 #define BEEPER_PIN 8 //GPIO 2, PIN 3
 #define SPOOL_PIN 4 //GPIO 23, PIN 16
 #define FIRE_PIN 5  //GPIO 24, PIN 18
+#define PIR0_PIN 29 //GPIO 21, PIN 40
 #define PIR1_PIN 25 //GPIO 26, PIN 37
 #define PIR2_PIN 24 //GPIO 19, PIN 25
 #define PIR3_PIN 23 //GPIO 13, PIN 33
@@ -64,12 +65,14 @@ typedef struct {
 #define MIN_SERVO 216
 #define MAX_TIMEOUT_S 10
 
-#define RIGHT MAX_JSTICK
-#define LEFT -1*MAX_JSTICK
+#define RIGHT 1
+#define LEFT 0
 #define UP DEAD_ZONE+1
 #define DOWN -DEAD_ZONE-1
 #define STOP 0
 #define MILISECONDS_PIR_STEP 250 //1/10
+#define Kp 0.4   //0.3
+#define Kd 0.55  //0.002
 
 //Camera stuff
 #define WIDTH 640
@@ -79,7 +82,7 @@ typedef struct {
 #define PIXEL_RADIUS 40
 
 //Distances
-#define WARNING_DIST 7
+#define WARNING_DIST 8
 #define FIRE_DIST 3
 
 //Macro functions

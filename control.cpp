@@ -38,7 +38,7 @@ void FollowObjectThread();
 
 //Other private functions
 void StopEverything();
-void MoveDCMotor(int value);
+void MoveDCMotor(int value, bool DIR = 0);
 void Beep(bool on);
 void Fire(bool on);
 void Spool(bool on);
@@ -70,8 +70,8 @@ void InitCL()
         servo_thread = std::thread(MoveServoThread);
 
         //Configure DC motor PINs
-        softPwmCreate(DC_MOTOR_MOV_PIN, 0, 100);
-        softPwmCreate(DC_MOTOR_DIR_PIN, 0, 100);
+        softPwmCreate(DC_MOTOR_MOV_PIN, 0, 120); //Limit to 100 so it doesn't move to fast
+        softPwmCreate(DC_MOTOR_DIR_PIN, 0, 120);
         // pinMode(DC_MOTOR_MOV_PIN, OUTPUT);
         // pinMode(DC_MOTOR_DIR_PIN, OUTPUT);
 
@@ -79,6 +79,7 @@ void InitCL()
         pinMode(SPOOL_PIN, OUTPUT);
         pinMode(FIRE_PIN, OUTPUT);
         pinMode(BEEPER_PIN, OUTPUT);
+        pinMode(PIR0_PIN, INPUT);
         pinMode(PIR1_PIN, INPUT);
         pinMode(PIR2_PIN, INPUT);
         pinMode(PIR3_PIN, INPUT);
@@ -109,7 +110,7 @@ void StopEverything()
     Beep(false);
     Fire(false);
     Spool(false);
-    MoveDCMotor(0);
+    MoveDCMotor(STOP);
 }
 
 
@@ -127,15 +128,17 @@ int RunIdle()
     {
         follow_thread.join();
     }
+    return NEXT_STATE;
 
     while(!RUN_MANUAL)
     {
         //Check sensors
+        int P0 = digitalRead(PIR0_PIN); //N
         int P1 = digitalRead(PIR1_PIN); //NE
         int P2 = digitalRead(PIR2_PIN); //SE
         int P3 = digitalRead(PIR3_PIN); //SW
         int P4 = digitalRead(PIR4_PIN); //NW
-        sprintf(message, "P1=%d P2=%d P3=%d P4=%d",P1,P2,P3,P4);
+        sprintf(message, "P0=%d P1=%d P2=%d P3=%d P4=%d",P0,P1,P2,P3,P4);
         LOG->debug(message);
         //std::this_thread::sleep_for(std::chrono::seconds(3));
         // P1=0;
@@ -144,17 +147,18 @@ int RunIdle()
         // continue;
         
         //North
-        if (P1 && P4)
+        if (P0)
         {
-            LOG->debug("Motion detected North (PIR1 and PIR2)");
+            LOG->debug("Motion detected North (PIR0)");
+            return NEXT_STATE;
         }
         //South
         else if (P2 && P3)
         {
             LOG->debug("Motion detected South (PIR2 and PIR3)");
-            MoveDCMotor(RIGHT);
-            std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*5));
-            MoveDCMotor(STOP);
+            // MoveDCMotor(RIGHT);
+            // std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*5));
+            // MoveDCMotor(STOP);
 
             return NEXT_STATE;
         }
@@ -162,9 +166,9 @@ int RunIdle()
         else if (P1 && P2)
         {
             LOG->debug("Motion detected East (PIR1 and PIR2)");
-            MoveDCMotor(RIGHT);
-            std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*3));
-            MoveDCMotor(STOP);
+            // MoveDCMotor(RIGHT);
+            // std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*3));
+            // MoveDCMotor(STOP);
 
             return NEXT_STATE;
         }
@@ -172,9 +176,9 @@ int RunIdle()
         else if (P3 && P4)
         {
             LOG->debug("Motion detected West (PIR3 and PIR4)");
-            MoveDCMotor(LEFT);
-            std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*3-58));
-            MoveDCMotor(STOP);
+            // MoveDCMotor(LEFT);
+            // std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*3-58));
+            // MoveDCMotor(STOP);
 
             return NEXT_STATE;
         }
@@ -182,9 +186,9 @@ int RunIdle()
         else if (P1)
         {
             LOG->debug("Motion detected North East (PIR1)");
-            MoveDCMotor(RIGHT);
-            std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*2));
-            MoveDCMotor(STOP);
+            // MoveDCMotor(RIGHT);
+            // std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*2));
+            // MoveDCMotor(STOP);
 
             return NEXT_STATE;
         }
@@ -192,9 +196,9 @@ int RunIdle()
         else if (P4)
         {
             LOG->debug("Motion detected North West (PIR4)");
-            MoveDCMotor(LEFT);
-            std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*2));
-            MoveDCMotor(STOP);
+            // MoveDCMotor(LEFT);
+            // std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*2));
+            // MoveDCMotor(STOP);
 
             return NEXT_STATE;
         }
@@ -202,9 +206,9 @@ int RunIdle()
         else if (P2)
         {
             LOG->debug("Motion detected South East (PIR2)");
-            MoveDCMotor(RIGHT);
-            std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*4));
-            MoveDCMotor(STOP);
+            // MoveDCMotor(RIGHT);
+            // std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*4));
+            // MoveDCMotor(STOP);
 
             return NEXT_STATE;
         }
@@ -212,9 +216,9 @@ int RunIdle()
         else if (P3)
         {
             LOG->debug("Motion detected South West (PIR3)");
-            MoveDCMotor(LEFT);
-            std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*4+40));
-            MoveDCMotor(STOP);
+            // MoveDCMotor(LEFT);
+            // std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*4+40));
+            // MoveDCMotor(STOP);
 
             return NEXT_STATE;
         }
@@ -284,9 +288,9 @@ int RunTargetWarn()
             return NEXT_STATE;
         }
         
-        //Run beeper every 3 seconds
+        //Run beeper every 2 seconds
         beep_count++;
-        if (beep_count == 3) 
+        if (beep_count == 2) 
         {
             Beep(true);
             beep_count = 0;
@@ -315,8 +319,8 @@ int RunTargetFire()
         Beep(false);
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-        //Spool
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        //Spool for a total of 1 second
+        std::this_thread::sleep_for(std::chrono::milliseconds(600));
 
         //Fire a burst shot
         Beep(true);
@@ -324,7 +328,7 @@ int RunTargetFire()
         Beep(false);
 
         Fire(true);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(800));
         Fire(false);
         Spool(false);
 
@@ -398,33 +402,27 @@ void MoveServoThread()
 
 
 /* Move toy horizontally
- * Value range between -MAX_JSTICK to +MAX_JSTICK
+ * Value ranges between 0 to 100
+ * DIR [0 left, 1 right]
 */
-void MoveDCMotor(int value)
+void MoveDCMotor(int value, bool DIR)
 {
-    //Translate joystick value to [right 1, stop 0, left -1]
-    if (-DEAD_ZONE <= value && value <= DEAD_ZONE) //stop
+    if (value == 0) //stop
     {
         //LOG->debug("Stopping DC motor");
-        // digitalWrite(DC_MOTOR_MOV_PIN, 0);
-        // digitalWrite(DC_MOTOR_DIR_PIN, 0);
         softPwmWrite(DC_MOTOR_MOV_PIN, 0);
         softPwmWrite(DC_MOTOR_DIR_PIN, 0);
     }
-    else if (value < -DEAD_ZONE) //Move left
+    else if (DIR == LEFT)
     {
         //LOG->debug("Moving DC motor left");
-        //digitalWrite(DC_MOTOR_MOV_PIN, 0);
-        //digitalWrite(DC_MOTOR_DIR_PIN, 1);
         softPwmWrite(DC_MOTOR_MOV_PIN, 0);
-        softPwmWrite(DC_MOTOR_DIR_PIN, (int)((-1*value/(float)MAX_JSTICK)*100.0));
+        softPwmWrite(DC_MOTOR_DIR_PIN, value);
     }
-    else if (value > DEAD_ZONE) //Move right
+    else if (DIR == RIGHT)
     {
         //LOG->debug("Moving DC motor right");
-        // digitalWrite(DC_MOTOR_MOV_PIN, 1);
-        // digitalWrite(DC_MOTOR_DIR_PIN, 0);
-        softPwmWrite(DC_MOTOR_MOV_PIN, (int)((value/(float)MAX_JSTICK)*100.0));
+        softPwmWrite(DC_MOTOR_MOV_PIN, value);
         softPwmWrite(DC_MOTOR_DIR_PIN, 0);
     }
 }
@@ -448,12 +446,12 @@ void Spool(bool on)
     if (on)
     {
         LOG->debug("Spooling!");
-        // digitalWrite(SPOOL_PIN, 1);
+        digitalWrite(SPOOL_PIN, 1);
     }
     else
     {
         LOG->debug("Spooling off!");
-        // digitalWrite(SPOOL_PIN, 0);
+        digitalWrite(SPOOL_PIN, 0);
     }
     
     
@@ -464,12 +462,12 @@ void Fire(bool on)
     if (on)
     {
         LOG->debug("Fire!");
-        // digitalWrite(FIRE_PIN, 1);
+        digitalWrite(FIRE_PIN, 1);
     }
     else
     {
         LOG->debug("Fire off");
-        // digitalWrite(FIRE_PIN, 0);
+        digitalWrite(FIRE_PIN, 0);
     }
 }
 
@@ -519,6 +517,26 @@ size_t get_axis_state(struct js_event *event, struct axis_state axes[3])
 
     return axis;
 }
+
+
+/* Translate joystick value to DC motor value
+*/
+void MoveDCMotorForJS(int value)
+{
+    if (-DEAD_ZONE <= value && value <= DEAD_ZONE) //stop
+    {
+        MoveDCMotor(0, 0);
+    }
+    else if (value < -DEAD_ZONE) //Move left
+    {
+        MoveDCMotor(-1.0*(value/(float)MAX_JSTICK)*100.0, 0);
+    }
+    else if (value > DEAD_ZONE) //Move right
+    {
+        MoveDCMotor((value/(float)MAX_JSTICK)*100.0, 1);
+    }
+}
+
 
 /* Manual control via a bluetooth controller.
  * '-' sign toggles between manual or AI controlling mode.
@@ -610,7 +628,7 @@ void JoyStickControlThread()
                     axis = get_axis_state(&event, axes);
                     //printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
 
-                    if (event.number == AXIS_HORZONTAL) MoveDCMotor(axes[axis].x);
+                    if (event.number == AXIS_HORZONTAL) MoveDCMotorForJS(axes[axis].x);
                     if (event.number == AXIS_VERTICAL)  MoveServo(axes[axis].x);
                     if (event.number == AXIS_SPOOL)     Spool(axes[axis].x > 0 ? true : false);
                     if (event.number == AXIS_FIRE)      Fire(axes[axis].y > 0 ? true : false);
@@ -850,6 +868,11 @@ int GetClosestTarget(target_info* t)
 void FollowObjectThread()
 {
     LOG->debug("Starting follow thread!");
+    int error = 0;
+    int last_error = 0;
+    int derivative = 0;
+    int control = 0;
+    int tolerance = 5;
 
     target_info t;
     while(!STOP_THREADS && FOLLOW_OBJ)
@@ -859,18 +882,32 @@ void FollowObjectThread()
             // sprintf(message, "Target %d (%d, %d) and %f meters", 
             //     t.target, t.x, t.y, target_distance);
             // LOG->debug(message);
-            int speed = max(min((15.0/(float)target_distance)*MAX_JSTICK, 30000), 10000);
-            printf("Target %d (%d, %d) and %f meters, speed %d\n", t.target, t.x, t.y, target_distance, speed);
+            printf("Target %d (%d, %d) and %f meters\n", t.target, t.x, t.y, target_distance);
 
-            //Move left
-            if (t.x < CENTER_X-PIXEL_RADIUS)  
-                MoveDCMotor(-1*speed);  
-            //Move right
-            else if (CENTER_X+PIXEL_RADIUS < t.x) 
-                 MoveDCMotor(speed);  
-            //STOP
-            else                                    
+            //Implement PID control
+            error = (CENTER_X - (int)t.x);
+            derivative = error - last_error;
+            control = (int)((Kp * error) + (Kd * derivative));
+            printf("Error=%d Derivative=%d Control=%d\n",error,derivative,control);
+
+            //Limit speed
+            if (control > 100) control = 100;
+            if (control < -100) control = -100;
+            last_error = error;
+
+            if (control > tolerance)
+            {
+                //Move left
+                MoveDCMotor(control, 0);
+            }
+            else if (control < -1*tolerance)
+            {
+                //Move right
+                MoveDCMotor(-1*control, 1);
+            }
+            else
                 MoveDCMotor(STOP);
+
 
             //Move Down
             if (t.y < (CENTER_Y-PIXEL_RADIUS))
@@ -892,6 +929,10 @@ void FollowObjectThread()
         }
         else
         {
+            error = 0;
+            last_error = 0;
+            derivative = 0;
+            control = 0;
             MoveDCMotor(STOP);
             MoveServo(STOP);
         }
