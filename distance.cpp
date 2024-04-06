@@ -1,5 +1,9 @@
 #include "distance.h"
 
+//Changeable
+#define T_TIMEOUT 10
+
+//Shared global
 extern std::shared_ptr<spdlog::logger> LOG;
 
 //Depth Sensor Variables
@@ -13,6 +17,8 @@ rs2_pipeline* pipeline;
 rs2_config* config;
 rs2_pipeline_profile* pipeline_profile;
 float TARGET_DIST = -1.0;
+int target_timeouts[MAX_TARGETS];
+target_info last_target;
 
 /* Function calls to librealsense may raise errors of type rs_error*/
 void check_error(rs2_error* e)
@@ -109,7 +115,12 @@ void InitDist()
         shared_mem[i].target = i; // Example: set target value
         shared_mem[i].x = 0;      // Initialize x coordinate
         shared_mem[i].y = 0;      // Initialize y coordinate
+        target_timeouts[i] = T_TIMEOUT;
     }
+
+    last_target.target = 0;
+    last_target.x = 0;
+    last_target.y = 0;
 
     //Start John's Object Detection (Python script)
     LOG->debug("Starting object detection script...");
@@ -228,11 +239,31 @@ int GetClosestTarget(target_info* t)
     }
     else
     {
-        t->target = shared_mem[index].target;
-        t->x = shared_mem[index].x;
-        t->y = shared_mem[index].y;
-        
-        TARGET_DIST = close_distance;
+        if (t->target != shared_mem[index].target)
+        {
+            //Keep track of target to average out target switching
+            target_timeouts[t->target]--;
+            printf("Target %d timeout %d\n", t->target, target_timeouts[t->target]);
+
+            //Only switch targets if timeout expires
+            if (target_timeouts[t->target] < 0)
+            {
+                t->target = shared_mem[index].target;
+                t->x = shared_mem[index].x;
+                t->y = shared_mem[index].y;
+                TARGET_DIST = close_distance;
+            }
+        }
+        else
+        {
+            //Reset timeout
+            target_timeouts[t->target] = T_TIMEOUT;
+
+            //Update values
+            t->x = shared_mem[index].x;
+            t->y = shared_mem[index].y;
+            TARGET_DIST = close_distance;
+        }
     }
 
     return 0;

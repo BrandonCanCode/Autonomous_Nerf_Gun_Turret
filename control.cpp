@@ -10,7 +10,7 @@ std::thread servo_thread;
 std::thread follow_thread;
 bool RUN_MANUAL = true;
 bool STOP_SERVO_THREAD = false;
-bool STOP_FOLLOW_OBJ = false;
+bool STOP_FOLLOW_OBJ = true;
 char message[256];
 float Kp;
 float Kd;
@@ -19,7 +19,6 @@ float Kd;
 int SERVO_DIR = 0;
 
 //Thread Functions
-void JoyStickControlThread();
 void MoveServoThread();
 void FollowObjectThread();
 
@@ -64,8 +63,9 @@ void InitCL(float K_p, float K_d)
         sprintf(message, "Kp=%f\tKd=%f", Kp,Kd);
         LOG->debug(message);
 
-        //Initialize depth sensor
+        //Initialize other libraries
         InitDist();
+        InitJS();
 }
 
 void DestructCL()
@@ -73,6 +73,8 @@ void DestructCL()
     LOG->debug("Destroying control library!");
 
     StopEverything();
+    STOP_FOLLOW_OBJ = true;
+    STOP_SERVO_THREAD = true;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     softPwmStop(DC_MOTOR_MOV_PIN);
     softPwmStop(DC_MOTOR_DIR_PIN);
@@ -90,9 +92,6 @@ void StopEverything()
     Spool(false);
     MoveDCMotor(STOP);
     MoveServo(STOP);
-
-    STOP_FOLLOW_OBJ = true;
-    STOP_SERVO_THREAD = true;
 }
 
 
@@ -326,7 +325,7 @@ int RunTargetFire()
 
 
 /* Move toy verticalically
- * Value [UP -1, STOP 0, DOWN 1]
+ * Value [UP 1, STOP 0, DOWN -1]
 */
 void MoveServo(int value)
 {
@@ -457,28 +456,31 @@ void FollowObjectThread()
             // sprintf(message, "Target %d (%d, %d) and %f meters", 
             //     t.target, t.x, t.y, TARGET_DIST);
             // LOG->debug(message);
-            printf("Target %d (%d, %d) and %f meters\n", t.target, t.x, t.y, TARGET_DIST);
+            //printf("Target %d (%d, %d) and %f meters\n", t.target, t.x, t.y, TARGET_DIST);
 
             //Implement PID control
             error = (CENTER_X - (int)t.x);
             derivative = error - last_error;
             control = (int)((Kp * error) + (Kd * derivative));
-            printf("Error=%d Derivative=%d Control=%d\n",error,derivative,control);
+            printf("Error=%5d  Last E=%5d  Derivative=%5d  Control=%5d  T=%d (%3d,%3d)  Dist=%.2f m\n",
+                error,last_error,derivative,control,t.target,t.x,t.y,TARGET_DIST);
 
             //Limit speed
             if (control > 100) control = 100;
             if (control < -100) control = -100;
             last_error = error;
 
-            if (control > tolerance)
+            if (control > 0)//tolerance)
             {
                 //Move left
-                MoveDCMotor(control, 0);
+                if (control > tolerance)
+                    MoveDCMotor(control, 0);
             }
-            else if (control < -1*tolerance)
+            else if (control < 0)//-1*tolerance)
             {
                 //Move right
-                MoveDCMotor(-1*control, 1);
+                if (control < -1*tolerance)
+                    MoveDCMotor(-1*control, 1);
             }
             else
                 MoveDCMotor(STOP);
@@ -505,7 +507,7 @@ void FollowObjectThread()
         else
         {
             error = 0;
-            last_error = 0;
+            //last_error = 0;
             derivative = 0;
             control = 0;
             MoveDCMotor(STOP);

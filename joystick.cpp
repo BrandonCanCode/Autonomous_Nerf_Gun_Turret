@@ -1,5 +1,4 @@
 #include "joystick.h"
-#include "control.h"
 
 //Shared Globals
 extern std::shared_ptr<spdlog::logger> LOG;
@@ -19,6 +18,8 @@ void JoyStickControlThread();
 
 void InitJS()
 {
+    LOG->debug("Initializing joystick library");
+
     //Initialize joystick thread
     js_thread = std::thread(JoyStickControlThread);
 }
@@ -27,15 +28,6 @@ void DestructJS()
 {
     //Stop the joystick thread
     STOP_JS_THREAD = true;
-    if (js_thread.joinable())
-    {
-        js_thread.join();
-    }
-
-    //Close file
-    if (JOYSTICK_FD != -1)
-        close(JOYSTICK_FD);
-        
     LOG->debug("Exiting joystick library...");
 }
 
@@ -114,10 +106,12 @@ void MoveServoForJS(int value)
     }
     else if (value < -DEAD_ZONE) //Move down
     {
+        printf("UP\n");
         MoveServo(DOWN);
     }
     else if (value > DEAD_ZONE) //Move up
     {
+        printf("DOWN\n");
         MoveServo(UP);
     }
 }
@@ -163,6 +157,7 @@ void JoyStickControlThread()
 
                     //Stop anything that motors that could be running
                     StopEverything();
+                    LOG->debug(">>> Changed Mode to Manual");
                 }
                 
             }
@@ -206,7 +201,7 @@ void JoyStickControlThread()
                     //printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
 
                     if (event.number == AXIS_HORIZONTAL) MoveDCMotorForJS(axes[axis].x);
-                    if (event.number == AXIS_VERTICAL)   MoveServo(axes[axis].x);
+                    if (event.number == AXIS_VERTICAL)   MoveServoForJS(axes[axis].x);
                     if (event.number == AXIS_SPOOL)      Spool(axes[axis].x > 0 ? true : false);
                     if (event.number == AXIS_FIRE)       Fire(axes[axis].y > 0 ? true : false);
                 }

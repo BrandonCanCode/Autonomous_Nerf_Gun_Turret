@@ -46,8 +46,8 @@ int main(int argc, char **argv)
 
     //Parse input args
     int opt;
-    float Kp =  0.4; //Proportional Gain
-    float Kd = 0.55; //Derivative Gain
+    float Kp =  0.32; //Proportional Gain
+    float Kd = 0.2; //Derivative Gain
     char *endptr;
 
     // Parse command-line options using getopt

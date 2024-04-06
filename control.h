@@ -56,6 +56,7 @@
 //Macro functions
 #define max(x,y) (x > y ? x : y)
 #define min(x,y) (x < y ? x : y)
+#define abs(x)   (x < 0 ? -1*x : x)
 
 //Global
 extern bool RUN_MANUAL;
