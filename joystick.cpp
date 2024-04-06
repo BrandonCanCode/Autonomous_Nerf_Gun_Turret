@@ -4,16 +4,22 @@
 extern std::shared_ptr<spdlog::logger> LOG;
 
 //Globals
-bool STOP_JS_THREAD;
+bool STOP_JS_THREAD = false;
+bool STOP_SERVO_THREAD = false;
 int JOYSTICK_FD = -1;
 std::thread js_thread;
+std::thread servo_thread;
 
 struct axis_state {
     short x, y;
 };
 
+//Thread variables
+int SERVO_DIR = 0;
+
 //Functions
 void JoyStickControlThread();
+void MoveServoThread();
 
 
 void InitJS()
@@ -22,12 +28,15 @@ void InitJS()
 
     //Initialize joystick thread
     js_thread = std::thread(JoyStickControlThread);
+    servo_thread = std::thread(MoveServoThread);
 }
 
 void DestructJS()
 {
     //Stop the joystick thread
+    SERVO_DIR = 0;
     STOP_JS_THREAD = true;
+    STOP_SERVO_THREAD = true;
     LOG->debug("Exiting joystick library...");
 }
 
@@ -104,16 +113,44 @@ void MoveServoForJS(int value)
     {
         MoveServo(STOP);
     }
-    else if (value < -DEAD_ZONE) //Move down
+    else if (value < -30000)
     {
-        printf("UP\n");
-        MoveServo(DOWN);
-    }
-    else if (value > DEAD_ZONE) //Move up
-    {
-        printf("DOWN\n");
         MoveServo(UP);
+        std::this_thread::sleep_for(std::chrono::milliseconds(55));
     }
+    else if (value > +30000)
+    {
+        MoveServo(DOWN);
+        std::this_thread::sleep_for(std::chrono::milliseconds(45));
+    }
+}
+
+
+void MoveServoThread()
+{
+    LOG->debug("Starting Servo Thread");
+
+    while(!STOP_SERVO_THREAD)
+    {
+        if (SERVO_DIR > 0) //Move up
+        {
+            MoveServo(UP);
+        }
+        else if (SERVO_DIR < 0) //Move down
+        {
+            MoveServo(DOWN);
+        }
+        else
+        {
+            MoveServo(STOP);
+        }
+
+        if (SERVO_DIR > 0) //UP
+            std::this_thread::sleep_for(std::chrono::milliseconds(45));
+        else if (SERVO_DIR < 0) //DOWN
+            std::this_thread::sleep_for(std::chrono::milliseconds(55));
+    }
+    LOG->debug("Exiting Servo Thread");
 }
 
 

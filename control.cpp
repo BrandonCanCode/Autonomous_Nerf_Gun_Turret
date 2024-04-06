@@ -9,17 +9,12 @@ extern float TARGET_DIST;
 std::thread servo_thread;
 std::thread follow_thread;
 bool RUN_MANUAL = true;
-bool STOP_SERVO_THREAD = false;
 bool STOP_FOLLOW_OBJ = true;
 char message[256];
 float Kp;
 float Kd;
 
-//Thread variables
-int SERVO_DIR = 0;
-
 //Thread Functions
-void MoveServoThread();
 void FollowObjectThread();
 
 
@@ -39,9 +34,6 @@ void InitCL(float K_p, float K_d)
         pwmSetMode(PWM_MODE_MS);
         pwmSetClock (1651);  //10ms period
         pwmSetRange(1000);
-
-        //Start servo thread
-        servo_thread = std::thread(MoveServoThread);
 
         //Configure DC motor PINs
         softPwmCreate(DC_MOTOR_MOV_PIN, 0, 120);
@@ -74,7 +66,6 @@ void DestructCL()
 
     StopEverything();
     STOP_FOLLOW_OBJ = true;
-    STOP_SERVO_THREAD = true;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     softPwmStop(DC_MOTOR_MOV_PIN);
     softPwmStop(DC_MOTOR_DIR_PIN);
@@ -327,40 +318,26 @@ int RunTargetFire()
 /* Move toy verticalically
  * Value [UP 1, STOP 0, DOWN -1]
 */
-void MoveServo(int value)
+void MoveServo(int DIR)
 {
-    SERVO_DIR = value;
-}
+    // SERVO_DIR = value;
+    int static position = 230;
 
-void MoveServoThread()
-{
-    LOG->debug("Starting Servo Thread");
-    int position = 230;
-
-    while(!STOP_SERVO_THREAD)
+    if (DIR == STOP)
     {
-        if (SERVO_DIR == 0) //stop
-        {
-            position = position;
-        }
-        else if (SERVO_DIR > 0) //Move up
-        {
-            if (position > MIN_SERVO)
-                position--;
-        }
-        else if (SERVO_DIR < 0) //Move down
-        {
-            if (position < MAX_SERVO)
-                position++;
-        }
-        pwmWrite(SERVO_WP_PIN, position);
-
-        if (SERVO_DIR > 0) //UP
-            std::this_thread::sleep_for(std::chrono::milliseconds(45));
-        else if (SERVO_DIR < 0) //DOWN
-            std::this_thread::sleep_for(std::chrono::milliseconds(55));
+        position = position;
     }
-    LOG->debug("Exiting Servo Thread");
+    else if (DIR == UP)
+    {
+        if (position > MIN_SERVO)
+            position--;
+    }
+    else if (DIR == DOWN)
+    {
+        if (position < MAX_SERVO)
+            position++;
+    }
+    pwmWrite(SERVO_WP_PIN, position);
 }
 
 
@@ -490,15 +467,15 @@ void FollowObjectThread()
             if (t.y < (CENTER_Y-PIXEL_RADIUS))
             {
                 MoveServo(DOWN);
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                MoveServo(STOP);
+                //std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                //MoveServo(STOP);
             }
             //Move Up
             else if ((CENTER_Y+PIXEL_RADIUS) < t.y)
             {
                 MoveServo(UP);
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                MoveServo(STOP);
+                //std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                //MoveServo(STOP);
             }
             //STOP
             else
