@@ -8,6 +8,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 //States
 #define IDLE 0
@@ -15,9 +16,12 @@
 #define TARGET_WARNING 2
 #define TARGET_FIRE 3
 
-//Globals
+//Functions
 std::shared_ptr<spdlog::logger> InitializeLogger();
+
+//Globals
 std::shared_ptr<spdlog::logger> LOG;
+
 
 void SigHandle(int sig)
 {
@@ -30,16 +34,61 @@ void SigHandle(int sig)
     }
 }
 
+
 int main(int argc, char **argv)
 {
-    //Initialization
+    //Validate sudo
+    if (geteuid() != 0)
+    {
+        fprintf(stderr, "You must run the program with 'sudo' privileges\n");
+        return 1;
+    }
+
+    //Parse input args
+    int opt;
+    float Kp =  0.4; //Proportional Gain
+    float Kd = 0.55; //Derivative Gain
+    char *endptr;
+
+    // Parse command-line options using getopt
+    while ((opt = getopt(argc, argv, "hp:d:")) != -1) 
+    {
+        switch (opt) {
+            case 'p':
+                Kp = strtof(optarg, &endptr);
+                if (*endptr != '\0') 
+                {
+                    fprintf(stderr, "Invalid float value for option 'p' Proportional gain: %s\n", optarg);
+                    return 1;
+                }
+                break;
+            case 'd':
+                Kd = strtof(optarg, &endptr);
+                if (*endptr != '\0') 
+                {
+                    fprintf(stderr, "Invalid float value for option 'd' Derivative gain: %s\n", optarg);
+                    return 1;
+                }
+                break;
+            case 'h':
+                fprintf(stderr, "Usage: %s [-p float_value] [-d float_value]\n", argv[0]);
+                return 1;
+            default:
+                fprintf(stderr, "Unknown option: %c\n", opt);
+                fprintf(stderr, "Usage: %s [-p float_value] [-d float_value]\n", argv[0]);
+                return 1;
+        }
+    }
+
+    //Setup signal handling
     signal(SIGINT, SigHandle);
     signal(SIGTERM, SigHandle);
     signal(SIGSEGV, SigHandle);
 
+    //Initialization
     LOG = InitializeLogger();
     LOG->debug("System initializing...");
-    InitCL();
+    InitCL(Kp,Kd);
 
     int state = IDLE;
     bool loop = true;
@@ -60,7 +109,7 @@ int main(int argc, char **argv)
         }
         else 
         {
-            sleep(1); //Wait for a mode toggle
+            std::this_thread::sleep_for(std::chrono::seconds(1)); //Wait for a mode toggle
             state = IDLE;
         }
     }

@@ -4,46 +4,22 @@
 #ifndef CONTROL_LIB_H
 #define CONTROL_LIB_H
 
+#include "distance.h"
+#include "joystick.h"
 #include "spdlog/spdlog.h"
 #include <unistd.h>
 #include <stdio.h>
-#include <linux/joystick.h>
 #include <thread>
-#include <fcntl.h>
 #include <signal.h>
 #include <wiringPi.h>
 #include <softPwm.h>
 #include <chrono>
 #include <stdint.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
 #include <float.h>
-
-/* Include the librealsense C header files */
-#include <librealsense2/rs.h>
-#include <librealsense2/h/rs_pipeline.h>
-#include <librealsense2/h/rs_option.h>
-#include <librealsense2/h/rs_frame.h>
-
-#define MAX_TARGETS 5
-
-typedef struct {
-    uint32_t target;
-    uint32_t x;
-    uint32_t y;
-} target_info;
-
 
 #define PREV_STATE -1
 #define NEXT_STATE 1
 
-//Joystick buttons and sticks (axis)
-#define BTN_TOGGLE_MODE 6
-#define BTN_BEEP 2
-#define AXIS_HORZONTAL 0
-#define AXIS_VERTICAL 4
-#define AXIS_SPOOL 2
-#define AXIS_FIRE 5
 
 //Pins
 #define SERVO_WP_PIN 26 //GPIO 12 PWM0, PIN 32
@@ -59,27 +35,19 @@ typedef struct {
 #define PIR4_PIN 30 //GPIO 0,  PIN 27
 
 //Maximums and Minimums
-#define DEAD_ZONE 10
 #define MAX_JSTICK 32767
 #define MAX_SERVO 250
 #define MIN_SERVO 216
-#define MAX_TIMEOUT_S 10
+#define MAX_TIMEOUT_S 4
 
 #define RIGHT 1
 #define LEFT 0
-#define UP DEAD_ZONE+1
-#define DOWN -DEAD_ZONE-1
+#define UP -1
+#define DOWN 1
 #define STOP 0
-#define MILISECONDS_PIR_STEP 250 //1/10
-#define Kp 0.4   //0.3
-#define Kd 0.55  //0.002
+// #define Kp 0.4   //0.3
+// #define Kd 0.55  //0.002
 
-//Camera stuff
-#define WIDTH 640
-#define HEIGHT 480
-#define CENTER_X WIDTH/2
-#define CENTER_Y HEIGHT/2
-#define PIXEL_RADIUS 40
 
 //Distances
 #define WARNING_DIST 8
@@ -99,7 +67,15 @@ int RunTargetWarn();
 int RunTargetFire();
 
 //Constructor and destructor
-void InitCL();
+void InitCL(float K_p, float K_d);
 void DestructCL();
+
+void StopEverything();
+void MoveDCMotor(int value, bool DIR = 0);
+void MoveServo(int value);
+void Beep(bool on);
+void Fire(bool on);
+void Spool(bool on);
+void StopFollowObjThread();
 
 #endif
