@@ -2,11 +2,18 @@
  *
 */
 #include "control.h"
+#include <spdlog/spdlog.h>
+#include <thread>
+#include <wiringPi.h>
+#include <softPwm.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <float.h>
+#include <chrono>
 
 //Private globals
 extern std::shared_ptr<spdlog::logger> LOG;
 extern float TARGET_DIST;
-std::thread servo_thread;
 std::thread follow_thread;
 bool RUN_MANUAL = true;
 bool STOP_FOLLOW_OBJ = true;

@@ -3,18 +3,7 @@
 #ifndef DISTANCE_H
 #define DISTANCE_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <cstdint>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include "spdlog/spdlog.h"
-
-/* Include the librealsense C header files */
-#include <librealsense2/rs.h>
-#include <librealsense2/h/rs_pipeline.h>
-#include <librealsense2/h/rs_option.h>
-#include <librealsense2/h/rs_frame.h>
+#include <stdint.h>
 
 #define MAX_TARGETS 5
 

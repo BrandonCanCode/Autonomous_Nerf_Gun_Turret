@@ -1,12 +1,22 @@
-# makefile for the control library
 CC = g++
-CFLAGS = -Wall -DSPDLOG_COMPILED_LIB -lspdlog -pthread -lwiringPi -lrealsense2
+CFLAGS = -Wall
+LIBS = -DSPDLOG_COMPILED_LIB -lspdlog -pthread -lwiringPi -lrealsense2 -lfmt
 
-SRCS = main.cpp control.cpp distance.cpp joystick.cpp
+SRCS = main.cpp joystick.cpp distance.cpp control.cpp
+OBJDIR = obj
+OBJS = $(addprefix $(OBJDIR)/,$(SRCS:.cpp=.o))
 OUT = run
 
-all:
-	$(CC) $(SRCS) -o $(OUT) $(CFLAGS)
+all: $(OUT)
+
+$(OUT): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+
+$(OBJDIR)/%.o: %.cpp | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
 
 clean:
-	rm -f $(OUT)
+	rm -f $(OBJS) $(OUT)

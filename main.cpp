@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <chrono>
+#include <thread>
 
 //States
 #define IDLE 0

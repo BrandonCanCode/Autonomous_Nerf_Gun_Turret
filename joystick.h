@@ -1,10 +1,6 @@
 /* joystick.h
 */
-#include <linux/joystick.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include "control.h"
+#include <stdbool.h>
 
 //Joystick buttons and sticks (axis)
 #define BTN_TOGGLE_MODE 6

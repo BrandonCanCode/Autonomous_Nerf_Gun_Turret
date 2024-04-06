@@ -6,16 +6,7 @@
 
 #include "distance.h"
 #include "joystick.h"
-#include "spdlog/spdlog.h"
-#include <unistd.h>
-#include <stdio.h>
-#include <thread>
-#include <signal.h>
-#include <wiringPi.h>
-#include <softPwm.h>
-#include <chrono>
-#include <stdint.h>
-#include <float.h>
+#include <stdbool.h>
 
 #define PREV_STATE -1
 #define NEXT_STATE 1
@@ -42,21 +33,15 @@
 
 #define RIGHT 1
 #define LEFT 0
-#define UP -1
-#define DOWN 1
+#define UP 1
+#define DOWN -1
 #define STOP 0
 // #define Kp 0.4   //0.3
 // #define Kd 0.55  //0.002
 
-
 //Distances
 #define WARNING_DIST 8
 #define FIRE_DIST 3
-
-//Macro functions
-#define max(x,y) (x > y ? x : y)
-#define min(x,y) (x < y ? x : y)
-#define abs(x)   (x < 0 ? -1*x : x)
 
 //Global
 extern bool RUN_MANUAL;

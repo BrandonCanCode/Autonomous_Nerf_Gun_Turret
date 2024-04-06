@@ -1,4 +1,11 @@
 #include "joystick.h"
+#include "control.h"
+#include <spdlog/spdlog.h>
+#include <linux/joystick.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <thread>
 
 //Shared Globals
 extern std::shared_ptr<spdlog::logger> LOG;
@@ -108,20 +115,18 @@ void MoveDCMotorForJS(int value)
 */
 void MoveServoForJS(int value)
 {
-    //Translate joystick value to [up 1, stop 0, down -1]
+    //Translate joystick value
     if (-DEAD_ZONE <= value && value <= DEAD_ZONE) //stop
     {
-        MoveServo(STOP);
+        SERVO_DIR = STOP;
     }
-    else if (value < -30000)
+    else if (value < -DEAD_ZONE)
     {
-        MoveServo(UP);
-        std::this_thread::sleep_for(std::chrono::milliseconds(55));
+        SERVO_DIR = DOWN;
     }
-    else if (value > +30000)
+    else if (value > +DEAD_ZONE)
     {
-        MoveServo(DOWN);
-        std::this_thread::sleep_for(std::chrono::milliseconds(45));
+        SERVO_DIR = UP;
     }
 }
 
@@ -132,23 +137,16 @@ void MoveServoThread()
 
     while(!STOP_SERVO_THREAD)
     {
-        if (SERVO_DIR > 0) //Move up
+        if (SERVO_DIR == UP) //Move up
         {
             MoveServo(UP);
+            std::this_thread::sleep_for(std::chrono::milliseconds(45));
         }
-        else if (SERVO_DIR < 0) //Move down
+        else if (SERVO_DIR == DOWN) //Move down
         {
             MoveServo(DOWN);
-        }
-        else
-        {
-            MoveServo(STOP);
-        }
-
-        if (SERVO_DIR > 0) //UP
-            std::this_thread::sleep_for(std::chrono::milliseconds(45));
-        else if (SERVO_DIR < 0) //DOWN
             std::this_thread::sleep_for(std::chrono::milliseconds(55));
+        }
     }
     LOG->debug("Exiting Servo Thread");
 }
