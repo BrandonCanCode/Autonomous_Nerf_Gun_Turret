@@ -56,5 +56,8 @@
         "cinttypes": "cpp",
         "iostream": "cpp",
         "istream": "cpp"
-    }
+    },
+    "cSpell.words": [
+        "verticalically"
+    ]
 }

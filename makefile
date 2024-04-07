@@ -1,8 +1,9 @@
+
 # makefile for the control library
 CC = g++
-CFLAGS = -Wall -DSPDLOG_COMPILED_LIB -lspdlog -pthread -l wiringPi -lrealsense2
+CFLAGS = -Wall -DSPDLOG_COMPILED_LIB -lspdlog -pthread -lwiringPi -lrealsense2
 
-SRCS = main.cpp control.cpp
+SRCS = main.cpp control.cpp distance.cpp joystick.cpp
 OUT = run
 
 all:
