@@ -4,7 +4,6 @@
 #ifndef CONTROL_LIB_H
 #define CONTROL_LIB_H
 
-#include "distance.h"
 #include "joystick.h"
 #include <stdbool.h>
 
@@ -36,8 +35,6 @@
 #define UP 1
 #define DOWN -1
 #define STOP 0
-// #define Kp 0.4   //0.3
-// #define Kd 0.55  //0.002
 
 //Distances
 #define WARNING_DIST 8
@@ -53,7 +50,7 @@ int RunTargetWarn();
 int RunTargetFire();
 
 //Constructor and destructor
-void InitCL(float K_p, float K_d);
+void InitCL(float K_p, float K_d, bool no_fire);
 void DestructCL();
 
 void StopEverything();

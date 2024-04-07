@@ -2,3 +2,5 @@
 /obj
 run
 nohup.out
+/__pycache__
+/.vscode

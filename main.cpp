@@ -37,6 +37,14 @@ void SigHandle(int sig)
     }
 }
 
+void printUsage(char **argv)
+{
+    printf("Usage: sudo %s [OPTIONS]\n", argv[0]);
+    printf("[-p float] Proportional gain Kp\n");
+    printf("[-d float] Derivative gain Kd\n");
+    printf("[-n      ] No Fire (disable spool and fire for autonomous mode)\n");
+}
+
 
 int main(int argc, char **argv)
 {
@@ -49,12 +57,13 @@ int main(int argc, char **argv)
 
     //Parse input args
     int opt;
-    float Kp =  0.32; //Proportional Gain
+    float Kp = 0.32; //Proportional Gain
     float Kd = 0.2; //Derivative Gain
     char *endptr;
+    bool no_fire = false;
 
     // Parse command-line options using getopt
-    while ((opt = getopt(argc, argv, "hp:d:")) != -1) 
+    while ((opt = getopt(argc, argv, "hp:d:n")) != -1) 
     {
         switch (opt) {
             case 'p':
@@ -73,12 +82,14 @@ int main(int argc, char **argv)
                     return 1;
                 }
                 break;
+            case 'n':
+                no_fire = true;
+                break;
             case 'h':
-                fprintf(stderr, "Usage: %s [-p float_value] [-d float_value]\n", argv[0]);
+                printUsage(argv);
                 return 1;
             default:
-                fprintf(stderr, "Unknown option: %c\n", opt);
-                fprintf(stderr, "Usage: %s [-p float_value] [-d float_value]\n", argv[0]);
+                printUsage(argv);
                 return 1;
         }
     }
@@ -91,7 +102,7 @@ int main(int argc, char **argv)
     //Initialization
     LOG = InitializeLogger();
     LOG->debug("System initializing...");
-    InitCL(Kp,Kd);
+    InitCL(Kp,Kd,no_fire);
 
     int state = IDLE;
     bool loop = true;

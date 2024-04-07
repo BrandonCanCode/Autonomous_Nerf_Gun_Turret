@@ -2,6 +2,7 @@
  *
 */
 #include "control.h"
+#include "distance.h"
 #include <spdlog/spdlog.h>
 #include <thread>
 #include <wiringPi.h>
@@ -20,12 +21,13 @@ bool STOP_FOLLOW_OBJ = true;
 char message[256];
 float Kp;
 float Kd;
+bool NO_FIRE = false;
 
 //Thread Functions
 void FollowObjectThread();
 
 
-void InitCL(float K_p, float K_d)
+void InitCL(float K_p, float K_d, bool no_fire)
 {
         //Initialize wiringPi
         if (wiringPiSetup() == -1)
@@ -34,7 +36,6 @@ void InitCL(float K_p, float K_d)
             DestructCL();
             exit(1);
         }
-        LOG->debug("Reminder: this program must be run with sudo.\n");
 
         //Configure Servo PIN
         pinMode(SERVO_WP_PIN, PWM_OUTPUT);
@@ -61,6 +62,8 @@ void InitCL(float K_p, float K_d)
         Kd = K_d;
         sprintf(message, "Kp=%f\tKd=%f", Kp,Kd);
         LOG->debug(message);
+
+        NO_FIRE = no_fire;
 
         //Initialize other libraries
         InitDist();
@@ -237,7 +240,7 @@ int RunObjDetect()
                 //Check if we need to go to warning
                 if (TARGET_DIST <= WARNING_DIST)
                 {
-                    //return NEXT_STATE;
+                    return NEXT_STATE;
                 }
             }
 
@@ -322,19 +325,14 @@ int RunTargetFire()
 }
 
 
-/* Move toy verticalically
+/* Move toy vertically
  * Value [UP 1, STOP 0, DOWN -1]
 */
 void MoveServo(int DIR)
 {
-    // SERVO_DIR = value;
     int static position = 230;
 
-    if (DIR == STOP)
-    {
-        position = position;
-    }
-    else if (DIR == UP)
+    if (DIR == UP)
     {
         if (position > MIN_SERVO)
             position--;
@@ -350,7 +348,6 @@ void MoveServo(int DIR)
 
 /* Move toy horizontally
  * Value ranges between 0 to 100
- * DIR [0 left, 1 right]
 */
 void MoveDCMotor(int value, bool DIR)
 {
@@ -393,15 +390,14 @@ void Spool(bool on)
     if (on)
     {
         LOG->debug("Spooling!");
-        digitalWrite(SPOOL_PIN, 1);
+        if (RUN_MANUAL || !NO_FIRE)
+            digitalWrite(SPOOL_PIN, 1);
     }
     else
     {
         LOG->debug("Spooling off!");
         digitalWrite(SPOOL_PIN, 0);
     }
-    
-    
 }
 
 void Fire(bool on)
@@ -409,7 +405,8 @@ void Fire(bool on)
     if (on)
     {
         LOG->debug("Fire!");
-        digitalWrite(FIRE_PIN, 1);
+        if (RUN_MANUAL || !NO_FIRE)
+            digitalWrite(FIRE_PIN, 1);
     }
     else
     {
@@ -437,11 +434,6 @@ void FollowObjectThread()
     {
         if(!GetClosestTarget(&t))
         {
-            // sprintf(message, "Target %d (%d, %d) and %f meters", 
-            //     t.target, t.x, t.y, TARGET_DIST);
-            // LOG->debug(message);
-            //printf("Target %d (%d, %d) and %f meters\n", t.target, t.x, t.y, TARGET_DIST);
-
             //Implement PID control
             error = (CENTER_X - (int)t.x);
             derivative = error - last_error;
@@ -474,19 +466,12 @@ void FollowObjectThread()
             if (t.y < (CENTER_Y-PIXEL_RADIUS))
             {
                 MoveServo(DOWN);
-                //std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                //MoveServo(STOP);
             }
             //Move Up
             else if ((CENTER_Y+PIXEL_RADIUS) < t.y)
             {
                 MoveServo(UP);
-                //std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                //MoveServo(STOP);
             }
-            //STOP
-            else
-                MoveServo(STOP);
         }
         else
         {
@@ -495,7 +480,6 @@ void FollowObjectThread()
             derivative = 0;
             control = 0;
             MoveDCMotor(STOP);
-            MoveServo(STOP);
         }
     }
 
