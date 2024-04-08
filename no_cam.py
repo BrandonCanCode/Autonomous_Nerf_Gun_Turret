@@ -42,8 +42,7 @@ def capture_frames(video_device,targets_info,engine):
     if not cap.isOpened():
         print("Error: Unable to open camera")
         return
-    
-    print("Camera opened!")
+
     try:
         # Main loop to capture frames
         while True:
@@ -112,10 +111,9 @@ if __name__ == "__main__":
     video_device = '/dev/video4'
     #video_device = find_rgb_camera()
     print("Vid: " + str(video_device))
-
     target_num =0
     target_infos_bytes = shm.read(5 * struct.calcsize("III"))
-    # Unpack target_info structs
+        # Unpack target_info structs
     target_infos = [struct.unpack("III", target_infos_bytes[i*12:(i+1)*12]) for i in range(5)]
     engine = PoseEngine('posenet_mobilenet_v1_075_481_641_quant_decoder_edgetpu.tflite')
     capture_frames(video_device,target_infos,engine)

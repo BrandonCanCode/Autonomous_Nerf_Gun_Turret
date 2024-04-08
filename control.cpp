@@ -108,7 +108,7 @@ int RunIdle()
 
     LOG->debug("System in IDLE state.");
 
-    // return NEXT_STATE;
+    return NEXT_STATE;
 
     //Destroy a follow thread if running
     StopFollowObjThread();
@@ -214,7 +214,8 @@ int RunIdle()
 int RunObjDetect()
 {
     LOG->debug("System in Object Detection state.");
-    LAZER(false);
+    //LAZER(false);
+    //LAZER(true);
 
     if (!RUN_MANUAL)
     {
@@ -229,7 +230,7 @@ int RunObjDetect()
 
         // Run until we think the target is in warning radius
         int time_out = MAX_TIMEOUT_S;
-        while (0 < time_out)
+        while (0 < time_out && !RUN_MANUAL)
         {
             if (TARGET_DIST == -1.0)
             {
@@ -245,7 +246,7 @@ int RunObjDetect()
                 //Check if we need to go to warning
                 if (TARGET_DIST <= WARNING_DIST)
                 {
-                    return NEXT_STATE;
+                    //return NEXT_STATE;
                 }
             }
 
@@ -259,7 +260,7 @@ int RunObjDetect()
 int RunTargetWarn()
 {
     LOG->debug("System in Target Warning state.");
-    LAZER(true);
+    //LAZER(true);
 
     // Run until we think the target is in fire radius or timeout
     int beep_count = 0;
@@ -441,69 +442,87 @@ void LAZER(bool on)
 */
 void FollowObjectThread()
 {
-    LOG->debug("Starting follow thread!");
-    int error = 0;
-    int last_error = 0;
-    int derivative = 0;
-    int control = 0;
-    int tolerance = 10;
-
-    target_info t;
-    while(!STOP_FOLLOW_OBJ)
+    try
     {
-        if(!GetClosestTarget(&t))
+        LOG->debug("Starting follow thread!");
+        int error = 0;
+        int last_error = 0;
+        int derivative = 0;
+        int control = 0;
+        int tolerance = 10;
+        int servo_step = 0;
+
+        target_info t;
+        t.target = 0;
+        t.x = 0;
+        t.y = 0;
+        while(!STOP_FOLLOW_OBJ)
         {
-            //Implement PID control
-            error = (CENTER_X - (int)t.x);
-            derivative = error - last_error;
-            control = (int)((Kp * error) + (Kd * derivative));
-            printf("Error=%5d  Last E=%5d  Derivative=%5d  Control=%5d  T=%d (%3d,%3d)  Dist=%.2f m\n",
-                error,last_error,derivative,control,t.target,t.x,t.y,TARGET_DIST);
-
-            //Limit speed
-            if (control > 100) control = 100;
-            if (control < -100) control = -100;
-            last_error = error;
-
-            if (control > 0)//tolerance)
+            if(!GetClosestTarget(&t))
             {
-                //Move left
-                if (control > tolerance)
-                    MoveDCMotor(control, 0);
-            }
-            else if (control < 0)//-1*tolerance)
-            {
-                //Move right
-                if (control < -1*tolerance)
-                    MoveDCMotor(-1*control, 1);
+                //Implement PID control
+                error = (CENTER_X - (int)t.x);
+                derivative = error - last_error;
+                control = (int)((Kp * error) + (Kd * derivative));
+                printf("Error=%5d  Last E=%5d  Derivative=%5d  Control=%5d  T=%d (%3d,%3d)  Dist=%.2f m\n",
+                    error,last_error,derivative,control,t.target,t.x,t.y,TARGET_DIST);
+
+                //Limit speed
+                if (control > 100) control = 100;
+                if (control < -100) control = -100;
+                last_error = error;
+
+                if (control > 0)//tolerance)
+                {
+                    //Move left
+                    if (control > tolerance)
+                        MoveDCMotor(control, 0);
+                }
+                else if (control < 0)//-1*tolerance)
+                {
+                    //Move right
+                    if (control < -1*tolerance)
+                        MoveDCMotor(-1*control, 1);
+                }
+                else
+                    MoveDCMotor(STOP);
+
+
+                //Move Down
+                if (servo_step >= 6)
+                {
+                    servo_step = 0;
+                    if (t.y < (CENTER_Y-PIXEL_RADIUS))
+                    {
+                        MoveServo(UP);
+                    }
+                    //Move Up
+                    else if ((CENTER_Y+PIXEL_RADIUS) < t.y)
+                    {
+                        MoveServo(DOWN);
+                    }
+                }
+                servo_step++;
             }
             else
+            {
+                error = 0;
+                //last_error = 0;
+                derivative = 0;
+                control = 0;
                 MoveDCMotor(STOP);
-
-
-            //Move Down
-            if (t.y < (CENTER_Y-PIXEL_RADIUS))
-            {
-                MoveServo(DOWN);
-            }
-            //Move Up
-            else if ((CENTER_Y+PIXEL_RADIUS) < t.y)
-            {
-                MoveServo(UP);
             }
         }
-        else
-        {
-            error = 0;
-            //last_error = 0;
-            derivative = 0;
-            control = 0;
-            MoveDCMotor(STOP);
-        }
+    }
+    catch(const std::exception& e)
+    {
+        sprintf(message, e.what());
+        LOG->error(message);
     }
 
     LOG->debug("Exiting follow thread!");
 }
+
 
 void StopFollowObjThread()
 {

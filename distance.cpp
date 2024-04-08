@@ -230,52 +230,64 @@ void GetDistances(float *distances)
 
 int GetClosestTarget(target_info* t)
 {
-    float close_distance = FLT_MAX;
-    int index = -1;
-    float distances[MAX_TARGETS];
-
-    GetDistances(distances);
-    for(int i=0; i<MAX_TARGETS; i++)
+    try
     {
-        if (distances[i] != -1 && distances[i] < close_distance)
+        float close_distance = FLT_MAX;
+        int index = -1;
+        float distances[MAX_TARGETS];
+
+        GetDistances(distances);
+        for(int i=0; i<MAX_TARGETS; i++)
         {
-            close_distance = distances[i];
-            index = i;
-        }
-    }
-
-    if (index == -1) 
-    {
-        TARGET_DIST = -1.0;
-        return 1;
-    }
-    else
-    {
-        if (t->target != shared_mem[index].target)
-        {
-            //Keep track of target to average out target switching
-            target_timeouts[t->target]--;
-            printf("Target %d timeout %d\n", t->target, target_timeouts[t->target]);
-
-            //Only switch targets if timeout expires
-            if (target_timeouts[t->target] < 0)
+            if (distances[i] != -1 && distances[i] < close_distance)
             {
-                t->target = shared_mem[index].target;
+                if (distances[i] > 0.25)
+                {
+                    close_distance = distances[i];
+                    index = i;
+                }
+            }
+        }
+
+        if (index == -1) 
+        {
+            TARGET_DIST = -1.0;
+            return 1;
+        }
+        else
+        {
+            if (t->target != shared_mem[index].target)
+            {
+                //Keep track of target to average out target switching
+                target_timeouts[t->target]--;
+                printf("Target %d timeout %d\n", t->target, target_timeouts[t->target]);
+
+                //Only switch targets if timeout expires
+                if (target_timeouts[t->target] < 0)
+                {
+                    t->target = shared_mem[index].target;
+                    t->x = shared_mem[index].x;
+                    t->y = shared_mem[index].y;
+                    TARGET_DIST = close_distance;
+                }
+            }
+            else
+            {
+                //Reset timeout
+                target_timeouts[t->target] = T_TIMEOUT;
+
+                //Update values
                 t->x = shared_mem[index].x;
                 t->y = shared_mem[index].y;
                 TARGET_DIST = close_distance;
             }
         }
-        else
-        {
-            //Reset timeout
-            target_timeouts[t->target] = T_TIMEOUT;
-
-            //Update values
-            t->x = shared_mem[index].x;
-            t->y = shared_mem[index].y;
-            TARGET_DIST = close_distance;
-        }
+    }
+    catch(const std::exception& e)
+    {
+        char error[256];
+        sprintf(error, e.what());
+        LOG->error(error);
     }
 
     return 0;
