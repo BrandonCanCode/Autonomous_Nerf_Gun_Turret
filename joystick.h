@@ -5,6 +5,7 @@
 //Joystick buttons and sticks (axis)
 #define BTN_TOGGLE_MODE 6
 #define BTN_BEEP 2
+#define BTN_LAZER 3
 #define AXIS_HORIZONTAL 0
 #define AXIS_VERTICAL 4
 #define AXIS_SPOOL 2

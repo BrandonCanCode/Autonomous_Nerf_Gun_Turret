@@ -23,6 +23,7 @@
 #define PIR2_PIN 24 //GPIO 19, PIN 25
 #define PIR3_PIN 23 //GPIO 13, PIN 33
 #define PIR4_PIN 30 //GPIO 0,  PIN 27
+#define LAZER_PIN 28 //GPIO 20, PIN 38
 
 //Maximums and Minimums
 #define MAX_JSTICK 32767
@@ -59,6 +60,7 @@ void MoveServo(int value);
 void Beep(bool on);
 void Fire(bool on);
 void Spool(bool on);
+void LAZER(bool on);
 void StopFollowObjThread();
 
 #endif

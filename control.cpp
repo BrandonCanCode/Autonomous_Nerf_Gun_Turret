@@ -51,6 +51,7 @@ void InitCL(float K_p, float K_d, bool no_fire)
         pinMode(SPOOL_PIN, OUTPUT);
         pinMode(FIRE_PIN, OUTPUT);
         pinMode(BEEPER_PIN, OUTPUT);
+        pinMode(LAZER_PIN, OUTPUT);
         pinMode(PIR0_PIN, INPUT);
         pinMode(PIR1_PIN, INPUT);
         pinMode(PIR2_PIN, INPUT);
@@ -91,6 +92,7 @@ void StopEverything()
     Beep(false);
     Fire(false);
     Spool(false);
+    LAZER(false);
     MoveDCMotor(STOP);
     MoveServo(STOP);
 }
@@ -101,11 +103,13 @@ void StopEverything()
 */
 int RunIdle()
 {
-    LOG->debug("System in IDLE state.");
     const int speed = 60;
     const int MILISECONDS_PIR_STEP = 500; //1/10
 
-    return NEXT_STATE;
+    LOG->debug("System in IDLE state.");
+    LAZER(false);
+
+    // return NEXT_STATE;
 
     //Destroy a follow thread if running
     StopFollowObjThread();
@@ -211,6 +215,8 @@ int RunIdle()
 int RunObjDetect()
 {
     LOG->debug("System in Object Detection state.");
+    LAZER(true);
+
     if (!RUN_MANUAL)
     {
         // std::this_thread::sleep_for(std::chrono::seconds(3)); //Test, remove later
@@ -415,6 +421,19 @@ void Fire(bool on)
     }
 }
 
+void LAZER(bool on)
+{
+    if (on)
+    {
+        LOG->debug("LAZER on");
+        digitalWrite(LAZER_PIN, 1);
+    }
+    else
+    {
+        LOG->debug("LAZER off");
+        digitalWrite(LAZER_PIN, 0);
+    }
+}
 
 
 

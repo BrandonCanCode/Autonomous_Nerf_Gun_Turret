@@ -223,10 +223,14 @@ void JoyStickControlThread()
                 //BUTTONS
                 if (event.type == JS_EVENT_BUTTON) //Pressed button
                 {
-                    //printf("Button %u %s\n", event.number, event.value ? "pressed" : "released");
+                    printf("Button %u %s\n", event.number, event.value ? "pressed" : "released");
                     if(event.number == BTN_BEEP)
                     {
                         Beep(event.value);
+                    }
+                    if (event.number == BTN_LAZER)
+                    {
+                        LAZER(event.value);
                     }
                 }
                 //AXIS
