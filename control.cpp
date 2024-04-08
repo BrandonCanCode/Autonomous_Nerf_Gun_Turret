@@ -107,7 +107,6 @@ int RunIdle()
     const int MILISECONDS_PIR_STEP = 500; //1/10
 
     LOG->debug("System in IDLE state.");
-    LAZER(false);
 
     // return NEXT_STATE;
 
@@ -215,7 +214,7 @@ int RunIdle()
 int RunObjDetect()
 {
     LOG->debug("System in Object Detection state.");
-    LAZER(true);
+    LAZER(false);
 
     if (!RUN_MANUAL)
     {
@@ -260,6 +259,7 @@ int RunObjDetect()
 int RunTargetWarn()
 {
     LOG->debug("System in Target Warning state.");
+    LAZER(true);
 
     // Run until we think the target is in fire radius or timeout
     int beep_count = 0;

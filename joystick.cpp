@@ -122,11 +122,11 @@ void MoveServoForJS(int value)
     }
     else if (value < -DEAD_ZONE)
     {
-        SERVO_DIR = DOWN;
+        SERVO_DIR = UP;
     }
     else if (value > +DEAD_ZONE)
     {
-        SERVO_DIR = UP;
+        SERVO_DIR = DOWN;
     }
 }
 
@@ -139,11 +139,13 @@ void MoveServoThread()
     {
         if (SERVO_DIR == UP) //Move up
         {
+            printf("UP\n");
             MoveServo(UP);
             std::this_thread::sleep_for(std::chrono::milliseconds(45));
         }
         else if (SERVO_DIR == DOWN) //Move down
         {
+            printf("DOWN\n");
             MoveServo(DOWN);
             std::this_thread::sleep_for(std::chrono::milliseconds(55));
         }
