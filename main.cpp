@@ -1,5 +1,5 @@
 /* main.cpp
- * Main loop that runs on the Raspberry Pi 5.
+ * Main loop that runs on the Raspberry Pi 4b.
 */
 
 #include "control.h"
@@ -43,6 +43,7 @@ void printUsage(char **argv)
     printf("[-p float] Proportional gain Kp\n");
     printf("[-d float] Derivative gain Kd\n");
     printf("[-n      ] No Fire (disable spool and fire for autonomous mode)\n");
+    printf("[-s      ] Show camera image (X11 forwarding only)\n");
 }
 
 
@@ -61,9 +62,10 @@ int main(int argc, char **argv)
     float Kd = 0.2; //Derivative Gain
     char *endptr;
     bool no_fire = false;
+    bool show_image = false;
 
     // Parse command-line options using getopt
-    while ((opt = getopt(argc, argv, "hp:d:n")) != -1) 
+    while ((opt = getopt(argc, argv, "hp:d:ns")) != -1) 
     {
         switch (opt) {
             case 'p':
@@ -85,6 +87,9 @@ int main(int argc, char **argv)
             case 'n':
                 no_fire = true;
                 break;
+            case 's':
+                show_image = true;
+                break;
             case 'h':
                 printUsage(argv);
                 return 1;
@@ -102,7 +107,7 @@ int main(int argc, char **argv)
     //Initialization
     LOG = InitializeLogger();
     LOG->debug("System initializing...");
-    InitCL(Kp,Kd,no_fire);
+    InitCL(Kp, Kd, no_fire, show_image);
 
     int state = IDLE;
     bool loop = true;

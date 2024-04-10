@@ -16,6 +16,7 @@ bool STOP_SERVO_THREAD = false;
 int JOYSTICK_FD = -1;
 std::thread js_thread;
 std::thread servo_thread;
+char mssg[256];
 
 struct axis_state {
     short x, y;
@@ -122,11 +123,11 @@ void MoveServoForJS(int value)
     }
     else if (value < -DEAD_ZONE)
     {
-        SERVO_DIR = DOWN;
+        SERVO_DIR = UP;
     }
     else if (value > +DEAD_ZONE)
     {
-        SERVO_DIR = UP;
+        SERVO_DIR = DOWN;
     }
 }
 
@@ -139,11 +140,13 @@ void MoveServoThread()
     {
         if (SERVO_DIR == UP) //Move up
         {
+            printf("UP\n");
             MoveServo(UP);
             std::this_thread::sleep_for(std::chrono::milliseconds(45));
         }
         else if (SERVO_DIR == DOWN) //Move down
         {
+            printf("DOWN\n");
             MoveServo(DOWN);
             std::this_thread::sleep_for(std::chrono::milliseconds(55));
         }
@@ -163,88 +166,100 @@ void JoyStickControlThread()
     size_t axis;
     RUN_MANUAL = false;
 
-    while (!STOP_JS_THREAD)
-    {
-        // Open joystick device
-        while (!STOP_JS_THREAD && JOYSTICK_FD == -1)
+    try
         {
-            // Periodically check if joystick exists
-            if (access(device, F_OK) != -1) 
-            {
-                LOG->debug("Joystick discovered");
-
-                JOYSTICK_FD = open(device, O_RDONLY);
-                if (JOYSTICK_FD == -1)
-                {
-                    LOG->error("Unable to open joystick...");
-                }
-                else
-                {
-                    //Device is opened and connected, change to manual mode
-                    RUN_MANUAL = true;
-                    printf("\n");
-                    printf("[=================]  Joystick Connected!  [=================]\n");
-                    printf("|                                                           |\n");
-                    printf("|           Changed turret control to manual mode           |\n");
-                    printf("|  Press '-' to change between modes (autonomous or manual) |\n");
-                    printf("|                                                           |\n");
-                    printf("[===========================================================]\n\n");
-
-                    //Stop anything that motors that could be running
-                    StopEverything();
-                    LOG->debug(">>> Changed Mode to Manual");
-                }
-                
-            }
-            else
-            {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-            }
-        }
-
-        // Joystick is connected and taking inputs
-        // This loop will exit if the controller is unplugged.
-        while (!STOP_JS_THREAD && read_event(JOYSTICK_FD, &event) == 0)
+        while (!STOP_JS_THREAD)
         {
-            if (event.type == JS_EVENT_BUTTON && event.number == BTN_TOGGLE_MODE && event.value == true)
+            // Open joystick device
+            while (!STOP_JS_THREAD && JOYSTICK_FD == -1)
             {
-                RUN_MANUAL = !RUN_MANUAL;
-                if (RUN_MANUAL)
-                    LOG->debug(">>> Changed Mode to Manual");
-                else
-                    LOG->debug(">>> Changed Mode to Autonomous");
-            }
-
-            if (RUN_MANUAL)
-            {
-                //Destroy the follow thread if running
-                StopFollowObjThread();
-
-                //BUTTONS
-                if (event.type == JS_EVENT_BUTTON) //Pressed button
+                // Periodically check if joystick exists
+                if (access(device, F_OK) != -1) 
                 {
-                    //printf("Button %u %s\n", event.number, event.value ? "pressed" : "released");
-                    if(event.number == BTN_BEEP)
+                    LOG->debug("Joystick discovered");
+
+                    JOYSTICK_FD = open(device, O_RDONLY);
+                    if (JOYSTICK_FD == -1)
                     {
-                        Beep(event.value);
+                        LOG->error("Unable to open joystick...");
+                    }
+                    else
+                    {
+                        //Device is opened and connected, change to manual mode
+                        RUN_MANUAL = true;
+                        printf("\n");
+                        printf("[=================]  Joystick Connected!  [=================]\n");
+                        printf("|                                                           |\n");
+                        printf("|           Changed turret control to manual mode           |\n");
+                        printf("|  Press '-' to change between modes (autonomous or manual) |\n");
+                        printf("|                                                           |\n");
+                        printf("[===========================================================]\n\n");
+
+                        //Stop anything that motors that could be running
+                        StopEverything();
+                        LOG->debug(">>> Changed Mode to Manual");
+                    }
+                    
+                }
+                else
+                {
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+            }
+
+            // Joystick is connected and taking inputs
+            // This loop will exit if the controller is unplugged.
+            while (!STOP_JS_THREAD && read_event(JOYSTICK_FD, &event) == 0)
+            {
+                if (event.type == JS_EVENT_BUTTON && event.number == BTN_TOGGLE_MODE && event.value == true)
+                {
+                    RUN_MANUAL = !RUN_MANUAL;
+                    if (RUN_MANUAL)
+                        LOG->debug(">>> Changed Mode to Manual");
+                    else
+                        LOG->debug(">>> Changed Mode to Autonomous");
+                }
+
+                if (RUN_MANUAL)
+                {
+                    //Destroy the follow thread if running
+                    StopFollowObjThread();
+
+                    //BUTTONS
+                    if (event.type == JS_EVENT_BUTTON) //Pressed button
+                    {
+                        printf("Button %u %s\n", event.number, event.value ? "pressed" : "released");
+                        if(event.number == BTN_BEEP)
+                        {
+                            Beep(event.value);
+                        }
+                        if (event.number == BTN_LAZER)
+                        {
+                            LAZER(event.value);
+                        }
+                    }
+                    //AXIS
+                    else if (event.type == JS_EVENT_AXIS)
+                    {
+                        axis = get_axis_state(&event, axes);
+                        //printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
+
+                        if (event.number == AXIS_HORIZONTAL) MoveDCMotorForJS(axes[axis].x);
+                        if (event.number == AXIS_VERTICAL)   MoveServoForJS(axes[axis].x);
+                        if (event.number == AXIS_SPOOL)      Spool(axes[axis].x > 0 ? true : false);
+                        if (event.number == AXIS_FIRE)       Fire(axes[axis].y > 0 ? true : false);
                     }
                 }
-                //AXIS
-                else if (event.type == JS_EVENT_AXIS)
-                {
-                    axis = get_axis_state(&event, axes);
-                    //printf("Axis %zu at (%6d, %6d) %u\n", axis, axes[axis].x, axes[axis].y, event.number);
-
-                    if (event.number == AXIS_HORIZONTAL) MoveDCMotorForJS(axes[axis].x);
-                    if (event.number == AXIS_VERTICAL)   MoveServoForJS(axes[axis].x);
-                    if (event.number == AXIS_SPOOL)      Spool(axes[axis].x > 0 ? true : false);
-                    if (event.number == AXIS_FIRE)       Fire(axes[axis].y > 0 ? true : false);
-                }
             }
-        }
 
-        //When reading ends, close device so we can reconnect later
-        close(JOYSTICK_FD);
-        JOYSTICK_FD = -1;
+            //When reading ends, close device so we can reconnect later
+            close(JOYSTICK_FD);
+            JOYSTICK_FD = -1;
+        }
+    }
+    catch(const std::exception& e)
+    {
+        sprintf(mssg, e.what());
+        LOG->error(mssg);
     }
 }

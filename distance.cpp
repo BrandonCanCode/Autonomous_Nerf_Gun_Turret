@@ -28,7 +28,6 @@ rs2_device* dev;
 rs2_pipeline* pipeline;
 rs2_config* config;
 rs2_pipeline_profile* pipeline_profile;
-float TARGET_DIST = -1.0;
 int target_timeouts[MAX_TARGETS];
 target_info last_target;
 
@@ -58,7 +57,7 @@ void print_device_info(rs2_device* dev)
 }
 
 
-void InitDist()
+void InitDist(bool show_image)
 {
     e = 0;
     char mes[256];
@@ -136,7 +135,11 @@ void InitDist()
 
     //Start John's Object Detection (Python script)
     LOG->debug("Starting object detection script...");
-    system("nohup python3 no_cam.py &");
+
+    if (show_image)
+        system("nohup python3 no_cam.py s &");
+    else
+        system("nohup python3 no_cam.py &");
 }
 
 
@@ -228,55 +231,77 @@ void GetDistances(float *distances)
 }
 
 
-int GetClosestTarget(target_info* t)
+int GetClosestTarget(target_info* t, float *dist)
 {
-    float close_distance = FLT_MAX;
-    int index = -1;
-    float distances[MAX_TARGETS];
-
-    GetDistances(distances);
-    for(int i=0; i<MAX_TARGETS; i++)
+    try
     {
-        if (distances[i] != -1 && distances[i] < close_distance)
+        float close_distance = FLT_MAX;
+        int index = -1;
+        float distances[MAX_TARGETS];
+
+        GetDistances(distances);
+        for(int i=0; i<MAX_TARGETS; i++)
         {
-            close_distance = distances[i];
-            index = i;
-        }
-    }
-
-    if (index == -1) 
-    {
-        TARGET_DIST = -1.0;
-        return 1;
-    }
-    else
-    {
-        if (t->target != shared_mem[index].target)
-        {
-            //Keep track of target to average out target switching
-            target_timeouts[t->target]--;
-            printf("Target %d timeout %d\n", t->target, target_timeouts[t->target]);
-
-            //Only switch targets if timeout expires
-            if (target_timeouts[t->target] < 0)
+            if (distances[i] != -1 && distances[i] < close_distance)
             {
-                t->target = shared_mem[index].target;
-                t->x = shared_mem[index].x;
-                t->y = shared_mem[index].y;
-                TARGET_DIST = close_distance;
+                if (0.25 < distances[i] && distances[i] < 15.0)
+                {
+                    close_distance = distances[i];
+                    index = i;
+                }
             }
+        }
+
+        if (index == -1) 
+        {
+            return 1;
         }
         else
         {
-            //Reset timeout
-            target_timeouts[t->target] = T_TIMEOUT;
+            // if (t->target != shared_mem[index].target)
+            // {
+            //     //Keep track of target to average out target switching
+            //     target_timeouts[t->target]--;
+            //     printf("Target %d timeout %d\n", t->target, target_timeouts[t->target]);
 
-            //Update values
-            t->x = shared_mem[index].x;
-            t->y = shared_mem[index].y;
-            TARGET_DIST = close_distance;
+            //     //Only switch targets if timeout expires
+            //     if (target_timeouts[t->target] < 0)
+            //     {
+            //         t->target = shared_mem[index].target;
+            //         t->x = shared_mem[index].x;
+            //         t->y = shared_mem[index].y;
+            //         TARGET_DIST = close_distance;
+            //     }
+            //     else
+            //     {
+            //         // t->target = shared_mem[t->target].target;
+            //         // t->x = shared_mem[t->target].x;
+            //         // t->y = shared_mem[t->target].y;
+            //         // TARGET_DIST = distances[t->target];
+            //     }
+            // }
+            // else
+            // {
+            //     //Reset timeout
+            //     target_timeouts[t->target] = T_TIMEOUT;
+
+                //Update values
+            // if ((last_dist-3 < close_distance && close_distance < last_dist+3))
+            // {
+                t->x = shared_mem[index].x;
+                t->y = shared_mem[index].y;
+                *dist = close_distance;
+            // }
+            return 0;
+            // }
         }
     }
+    catch(const std::exception& e)
+    {
+        char error[256];
+        sprintf(error, e.what());
+        LOG->error(error);
+    }
 
-    return 0;
+    return 2;
 }

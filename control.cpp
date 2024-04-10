@@ -12,9 +12,10 @@
 #include <float.h>
 #include <chrono>
 
-//Private globals
 extern std::shared_ptr<spdlog::logger> LOG;
-extern float TARGET_DIST;
+
+//Private globals
+float TARGET_DIST = -1.0;
 std::thread follow_thread;
 bool RUN_MANUAL = true;
 bool STOP_FOLLOW_OBJ = true;
@@ -27,7 +28,7 @@ bool NO_FIRE = false;
 void FollowObjectThread();
 
 
-void InitCL(float K_p, float K_d, bool no_fire)
+void InitCL(float K_p, float K_d, bool no_fire, bool show_image)
 {
         //Initialize wiringPi
         if (wiringPiSetup() == -1)
@@ -51,6 +52,7 @@ void InitCL(float K_p, float K_d, bool no_fire)
         pinMode(SPOOL_PIN, OUTPUT);
         pinMode(FIRE_PIN, OUTPUT);
         pinMode(BEEPER_PIN, OUTPUT);
+        pinMode(LAZER_PIN, OUTPUT);
         pinMode(PIR0_PIN, INPUT);
         pinMode(PIR1_PIN, INPUT);
         pinMode(PIR2_PIN, INPUT);
@@ -66,7 +68,7 @@ void InitCL(float K_p, float K_d, bool no_fire)
         NO_FIRE = no_fire;
 
         //Initialize other libraries
-        InitDist();
+        InitDist(show_image);
         InitJS();
 }
 
@@ -91,6 +93,7 @@ void StopEverything()
     Beep(false);
     Fire(false);
     Spool(false);
+    LAZER(false);
     MoveDCMotor(STOP);
     MoveServo(STOP);
 }
@@ -101,11 +104,12 @@ void StopEverything()
 */
 int RunIdle()
 {
-    LOG->debug("System in IDLE state.");
     const int speed = 60;
     const int MILISECONDS_PIR_STEP = 500; //1/10
 
-    return NEXT_STATE;
+    LOG->debug("System in IDLE state.");
+
+    //return NEXT_STATE;
 
     //Destroy a follow thread if running
     StopFollowObjThread();
@@ -128,35 +132,35 @@ int RunIdle()
             return NEXT_STATE;
         }
         //South
-        else if (P2 && P3)
-        {
-            LOG->debug("Motion detected South (PIR2 and PIR3)");
-            MoveDCMotor(speed, RIGHT);
-            std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*5));
-            MoveDCMotor(STOP);
+        // else if (P2 && P3)
+        // {
+        //     LOG->debug("Motion detected South (PIR2 and PIR3)");
+        //     MoveDCMotor(speed, RIGHT);
+        //     std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*5));
+        //     MoveDCMotor(STOP);
 
-            return NEXT_STATE;
-        }
-        //East
-        else if (P1 && P2)
-        {
-            LOG->debug("Motion detected East (PIR1 and PIR2)");
-            MoveDCMotor(speed, RIGHT);
-            std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*3));
-            MoveDCMotor(STOP);
+        //     return NEXT_STATE;
+        // }
+        // //East
+        // else if (P1 && P2)
+        // {
+        //     LOG->debug("Motion detected East (PIR1 and PIR2)");
+        //     MoveDCMotor(speed, RIGHT);
+        //     std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*3));
+        //     MoveDCMotor(STOP);
 
-            return NEXT_STATE;
-        }
-        //West
-        else if (P3 && P4)
-        {
-            LOG->debug("Motion detected West (PIR3 and PIR4)");
-            MoveDCMotor(speed, LEFT);
-            std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*3));
-            MoveDCMotor(STOP);
+        //     return NEXT_STATE;
+        // }
+        // //West
+        // else if (P3 && P4)
+        // {
+        //     LOG->debug("Motion detected West (PIR3 and PIR4)");
+        //     MoveDCMotor(speed, LEFT);
+        //     std::this_thread::sleep_for(std::chrono::milliseconds(MILISECONDS_PIR_STEP*3));
+        //     MoveDCMotor(STOP);
 
-            return NEXT_STATE;
-        }
+        //     return NEXT_STATE;
+        // }
         //NE
         else if (P1)
         {
@@ -211,10 +215,13 @@ int RunIdle()
 int RunObjDetect()
 {
     LOG->debug("System in Object Detection state.");
+    //LAZER(false);
+    //LAZER(true);
+
     if (!RUN_MANUAL)
     {
-        // std::this_thread::sleep_for(std::chrono::seconds(3)); //Test, remove later
-        // return PREV_STATE;
+        std::this_thread::sleep_for(std::chrono::seconds(3)); //Test, remove later
+        return PREV_STATE;
         // Start up object following thread
         if (STOP_FOLLOW_OBJ == true)
         {
@@ -224,7 +231,7 @@ int RunObjDetect()
 
         // Run until we think the target is in warning radius
         int time_out = MAX_TIMEOUT_S;
-        while (0 < time_out)
+        while (0 < time_out && !RUN_MANUAL)
         {
             if (TARGET_DIST == -1.0)
             {
@@ -254,9 +261,10 @@ int RunObjDetect()
 int RunTargetWarn()
 {
     LOG->debug("System in Target Warning state.");
+    //LAZER(true);
+    int beep_count = 1;
 
     // Run until we think the target is in fire radius or timeout
-    int beep_count = 0;
     while (!RUN_MANUAL && TARGET_DIST != -1.0 && TARGET_DIST < WARNING_DIST)
     {
         //Check if we need to go to firing state
@@ -266,11 +274,11 @@ int RunTargetWarn()
         }
         
         //Run beeper every 2 seconds
-        beep_count++;
-        if (beep_count == 2) 
+        beep_count--;
+        if (beep_count <= 0) 
         {
             Beep(true);
-            beep_count = 0;
+            beep_count = 2;
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             Beep(false);
             std::this_thread::sleep_for(std::chrono::milliseconds(900));
@@ -415,6 +423,19 @@ void Fire(bool on)
     }
 }
 
+void LAZER(bool on)
+{
+    if (on)
+    {
+        LOG->debug("LAZER on");
+        digitalWrite(LAZER_PIN, 1);
+    }
+    else
+    {
+        LOG->debug("LAZER off");
+        digitalWrite(LAZER_PIN, 0);
+    }
+}
 
 
 
@@ -422,69 +443,91 @@ void Fire(bool on)
 */
 void FollowObjectThread()
 {
-    LOG->debug("Starting follow thread!");
-    int error = 0;
-    int last_error = 0;
-    int derivative = 0;
-    int control = 0;
-    int tolerance = 10;
-
-    target_info t;
-    while(!STOP_FOLLOW_OBJ)
+    try
     {
-        if(!GetClosestTarget(&t))
+        LOG->debug("Starting follow thread!");
+        int error = 0;
+        int last_error = 0;
+        int derivative = 0;
+        int control = 0;
+        int tolerance = 10;
+        int servo_step = 0;
+
+        float dist = 1.0;
+        target_info t;
+        t.target = 0;
+        t.x = 0;
+        t.y = 0;
+        while(!STOP_FOLLOW_OBJ)
         {
-            //Implement PID control
-            error = (CENTER_X - (int)t.x);
-            derivative = error - last_error;
-            control = (int)((Kp * error) + (Kd * derivative));
-            printf("Error=%5d  Last E=%5d  Derivative=%5d  Control=%5d  T=%d (%3d,%3d)  Dist=%.2f m\n",
-                error,last_error,derivative,control,t.target,t.x,t.y,TARGET_DIST);
-
-            //Limit speed
-            if (control > 100) control = 100;
-            if (control < -100) control = -100;
-            last_error = error;
-
-            if (control > 0)//tolerance)
+            if(!GetClosestTarget(&t, &dist))
             {
-                //Move left
-                if (control > tolerance)
-                    MoveDCMotor(control, 0);
-            }
-            else if (control < 0)//-1*tolerance)
-            {
-                //Move right
-                if (control < -1*tolerance)
-                    MoveDCMotor(-1*control, 1);
+                //Update distance
+                TARGET_DIST = dist;
+
+                //Implement PID control
+                error = (CENTER_X - (int)t.x);
+                derivative = error - last_error;
+                control = (int)((Kp * error) + (Kd * derivative));
+                printf("Error=%5d  Last E=%5d  Derivative=%5d  Control=%5d  T=%d (%3d,%3d)  Dist=%.2f m\n",
+                    error,last_error,derivative,control,t.target,t.x,t.y,TARGET_DIST);
+
+                //Limit speed
+                if (control > 100) control = 100;
+                if (control < -100) control = -100;
+                last_error = error;
+
+                if (control > 0)
+                {
+                    //Move left
+                    if (control > tolerance)
+                        MoveDCMotor(control, 0);
+                }
+                else if (control < 0)
+                {
+                    //Move right
+                    if (control < -1*tolerance)
+                        MoveDCMotor(-1*control, 1);
+                }
+                else
+                    MoveDCMotor(STOP);
+
+
+                //Move Down
+                if (servo_step >= 6)
+                {
+                    servo_step = 0;
+                    if (t.y < (CENTER_Y-PIXEL_RADIUS))
+                    {
+                        MoveServo(UP);
+                    }
+                    //Move Up
+                    else if ((CENTER_Y+PIXEL_RADIUS) < t.y)
+                    {
+                        MoveServo(DOWN);
+                    }
+                }
+                servo_step++;
             }
             else
+            {
+                TARGET_DIST = -1.0;
+                error = 0;
+                derivative = 0;
+                control = 0;
                 MoveDCMotor(STOP);
-
-
-            //Move Down
-            if (t.y < (CENTER_Y-PIXEL_RADIUS))
-            {
-                MoveServo(DOWN);
-            }
-            //Move Up
-            else if ((CENTER_Y+PIXEL_RADIUS) < t.y)
-            {
-                MoveServo(UP);
             }
         }
-        else
-        {
-            error = 0;
-            //last_error = 0;
-            derivative = 0;
-            control = 0;
-            MoveDCMotor(STOP);
-        }
+    }
+    catch(const std::exception& e)
+    {
+        sprintf(message, e.what());
+        LOG->error(message);
     }
 
     LOG->debug("Exiting follow thread!");
 }
+
 
 void StopFollowObjThread()
 {

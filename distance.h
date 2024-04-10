@@ -20,12 +20,9 @@ typedef struct {
     uint32_t y;
 } target_info;
 
-//Shared globals
-extern float TARGET_DIST;
-
-void InitDist();
+void InitDist(bool show_image);
 void DestructDist();
-int GetClosestTarget(target_info* t);
+int GetClosestTarget(target_info* t, float *dist);
 
 
 #endif

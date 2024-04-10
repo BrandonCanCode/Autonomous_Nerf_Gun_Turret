@@ -23,6 +23,7 @@
 #define PIR2_PIN 24 //GPIO 19, PIN 25
 #define PIR3_PIN 23 //GPIO 13, PIN 33
 #define PIR4_PIN 30 //GPIO 0,  PIN 27
+#define LAZER_PIN 28 //GPIO 20, PIN 38
 
 //Maximums and Minimums
 #define MAX_JSTICK 32767
@@ -38,7 +39,7 @@
 
 //Distances
 #define WARNING_DIST 8
-#define FIRE_DIST 3
+#define FIRE_DIST 5
 
 //Global
 extern bool RUN_MANUAL;
@@ -50,7 +51,7 @@ int RunTargetWarn();
 int RunTargetFire();
 
 //Constructor and destructor
-void InitCL(float K_p, float K_d, bool no_fire);
+void InitCL(float K_p, float K_d, bool no_fire, bool show_image);
 void DestructCL();
 
 void StopEverything();
@@ -59,6 +60,7 @@ void MoveServo(int value);
 void Beep(bool on);
 void Fire(bool on);
 void Spool(bool on);
+void LAZER(bool on);
 void StopFollowObjThread();
 
 #endif
