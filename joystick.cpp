@@ -164,7 +164,7 @@ void JoyStickControlThread()
     struct js_event event;
     struct axis_state axes[3] = {0};
     size_t axis;
-    RUN_MANUAL = false;
+    RUN_MANUAL = true;
 
     try
         {
