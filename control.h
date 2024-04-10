@@ -29,7 +29,7 @@
 #define MAX_JSTICK 32767
 #define MAX_SERVO 250
 #define MIN_SERVO 216
-#define MAX_TIMEOUT_S 4
+#define MAX_TIMEOUT_S 2
 
 #define RIGHT 1
 #define LEFT 0
