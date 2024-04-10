@@ -220,8 +220,8 @@ int RunObjDetect()
 
     if (!RUN_MANUAL)
     {
-        std::this_thread::sleep_for(std::chrono::seconds(3)); //Test, remove later
-        return PREV_STATE;
+        //std::this_thread::sleep_for(std::chrono::seconds(3)); //Test, remove later
+        //return PREV_STATE;
         // Start up object following thread
         if (STOP_FOLLOW_OBJ == true)
         {

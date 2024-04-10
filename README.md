@@ -11,3 +11,6 @@ https://github.com/WiringPi/WiringPi
 
 ## RealSense SDK 2.0
 https://github.com/IntelRealSense/librealsense
+
+# Notes
+To fix running camera with sudo, run `sudo xauth merge ~/.Xauthority`

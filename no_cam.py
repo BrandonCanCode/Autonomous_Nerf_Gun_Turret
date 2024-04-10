@@ -44,7 +44,7 @@ def capture_frames(video_device,targets_info,engine,show_image):
          #   print('Inference time: %.f ms' % (inference_time * 1000))
             target_num=0
             for pose in poses:
-                if pose.keypoints[5].score >= 0.5 and pose.keypoints[6].score >= 0.5:
+                if pose.keypoints[5].score >= 0.4 and pose.keypoints[6].score >= 0.4:
                     # print("Left and right keypoints are present")
                     kp_x_1 = int(pose.keypoints[5].point[0] )
                     kp_y_1 = int(pose.keypoints[5].point[1])
