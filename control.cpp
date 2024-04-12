@@ -67,6 +67,8 @@ void InitCL(float K_p, float K_d, bool no_fire, bool show_image)
 
         NO_FIRE = no_fire;
 
+        MoveServo(UP);
+
         //Initialize other libraries
         InitDist(show_image);
         InitJS();
@@ -215,13 +217,9 @@ int RunIdle()
 int RunObjDetect()
 {
     LOG->debug("System in Object Detection state.");
-    //LAZER(false);
-    //LAZER(true);
 
     if (!RUN_MANUAL)
     {
-        //std::this_thread::sleep_for(std::chrono::seconds(3)); //Test, remove later
-        //return PREV_STATE;
         // Start up object following thread
         if (STOP_FOLLOW_OBJ == true)
         {
@@ -261,7 +259,6 @@ int RunObjDetect()
 int RunTargetWarn()
 {
     LOG->debug("System in Target Warning state.");
-    //LAZER(true);
     int beep_count = 1;
 
     // Run until we think the target is in fire radius or timeout
@@ -469,8 +466,10 @@ void FollowObjectThread()
                 error = (CENTER_X - (int)t.x);
                 derivative = error - last_error;
                 control = (int)((Kp * error) + (Kd * derivative));
-                printf("Error=%5d  Last E=%5d  Derivative=%5d  Control=%5d  T=%d (%3d,%3d)  Dist=%.2f m\n",
+                
+                sprintf(message, "Error=%5d  Last E=%5d  Derivative=%5d  Control=%5d  T=%d (%3d,%3d)  Dist=%.2f m",
                     error,last_error,derivative,control,t.target,t.x,t.y,TARGET_DIST);
+                LOG->debug(message);
 
                 //Limit speed
                 if (control > 100) control = 100;
