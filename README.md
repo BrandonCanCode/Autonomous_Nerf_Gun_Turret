@@ -1,8 +1,8 @@
-
-![nerf_gun](https://github.com/BrandonCanCode/Autonomous_Nerf_Gun_Turret/assets/69353222/2c996650-c540-498e-8d52-8a03894cf890)
-
 # Autonomous Nerf Gun Turret
+<img src="https://github.com/BrandonCanCode/Autonomous_Nerf_Gun_Turret/assets/69353222/2c996650-c540-498e-8d52-8a03894cf890" width="400" />
+
 This project utilizes an intel depth camera, Raspberry Pi 4B, Bluetooth controller, TPU, motion sensors, and computer vision to operate an Autonomous Nerf Gun Turret (ANGT).
+
 ## Autonomous Mode
 * AI runs on TensorFlow and OpenCV.
 * The coral USB accelerator (TPU) speeds up the AI's inferences. 
