@@ -39,7 +39,7 @@
 
 //Distances
 #define WARNING_DIST 8
-#define FIRE_DIST 5
+#define FIRE_DIST 4
 
 //Global
 extern bool RUN_MANUAL;

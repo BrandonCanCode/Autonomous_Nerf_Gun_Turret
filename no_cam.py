@@ -8,6 +8,8 @@ import argparse
 import numpy as np
 import os
 
+score = 0.42
+
 key = sysv_ipc.ftok("/tmp", 42)  # Use an integer value for proj_id
 
 # Access the same shared memory segment
@@ -44,7 +46,7 @@ def capture_frames(video_device,targets_info,engine,show_image):
          #   print('Inference time: %.f ms' % (inference_time * 1000))
             target_num=0
             for pose in poses:
-                if pose.keypoints[5].score >= 0.5 and pose.keypoints[6].score >= 0.5:
+                if pose.keypoints[5].score >= score and pose.keypoints[6].score >= score:
                     # print("Left and right keypoints are present")
                     kp_x_1 = int(pose.keypoints[5].point[0] )
                     kp_y_1 = int(pose.keypoints[5].point[1])
